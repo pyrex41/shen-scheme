@@ -126,14 +126,25 @@
 
 \* To print location of errors *\
 
-(package shen [scm.error-location scm.exit]
+(package shen [scm.error-location scm.exit scm.string-length scm.substring]
 
-\* The kernel reader raises "error: empty stream" when the standard input
-   reaches EOF with nothing buffered. At the REPL toplevel that means the
-   input is exhausted (e.g. a closed stdin pipe), so exit cleanly instead of
-   printing the error and re-looping forever. *\
+\* The kernel reader raises "...empty stream" when the standard input reaches
+   EOF with nothing buffered (kl/reader.kl shen.read-loop:
+   (simple-error "error: empty stream")). Match it by the stable "empty stream"
+   suffix rather than the full literal, so a future change to the "error: "
+   prefix (or added context around it) still detects EOF. *\
+(define eof-message?
+  Msg -> (let Suffix "empty stream"
+              LM ((foreign scm.string-length) Msg)
+              LS ((foreign scm.string-length) Suffix)
+              (and (>= LM LS)
+                   (= Suffix ((foreign scm.substring) Msg (- LM LS) LM)))))
+
+\* At the REPL toplevel an exhausted standard input (e.g. a closed stdin pipe)
+   means we are done, so exit cleanly instead of printing the error and
+   re-looping forever. *\
 (define toplevel-display-exception
-  E -> ((foreign scm.exit) 0) where (= (error-to-string E) "error: empty stream")
+  E -> ((foreign scm.exit) 0) where (eof-message? (error-to-string E))
   E -> (let Msg (error-to-string E)
             Loc ((foreign scm.error-location) E)
         (if (interactive-error? E Loc Msg)
