@@ -13,13 +13,18 @@
 (define integer?
   Val -> ((foreign scm.integer?) Val))
 
+\* *hush* gates only the standard-output stream, NOT arbitrary file streams:
+   an explicit `pr` to a file is user intent, not chatter to be silenced.
+   (Matches the cross-port agreement; the bare kernel `pr` suppresses every
+   sink under *hush*, which silenced file writes here.) *\
 (define pr
   String Sink -> (trap-error
-                  (let P (if ((foreign scm.textual-port?) Sink)
-                             ((foreign scm.or) (value *hush*) ((foreign scm.put-string) Sink String))
-                             ((foreign scm.or) (value *hush*) ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
+                  (let Hushed ((foreign scm.and) (value *hush*) ((foreign scm.eq?) Sink (value *stoutput*)))
+                       P (if ((foreign scm.textual-port?) Sink)
+                             ((foreign scm.or) Hushed ((foreign scm.put-string) Sink String))
+                             ((foreign scm.or) Hushed ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
                        F ((foreign scm.and)
-                            (not (value *hush*))
+                            (not Hushed)
                             ((foreign scm.should-flush?) Sink)
                             ((foreign scm.flush-output-port) Sink))
                     String)
@@ -105,6 +110,32 @@
 
 (define shen.char-stinput? S -> false)
 (define shen.char-stoutput? S -> false)
+
+\* REPL stdin-EOF handling.
+
+   Canonical Shen loops forever when the REPL's standard input is exhausted:
+   the kernel reader hits EOF, raises an error, shen.loop catches it with
+   trap-error, prints it, and recurses — re-reading EOF endlessly.
+
+   We detect EOF at the input layer (not by string-matching the downstream
+   error) and exit cleanly. _scm.*in-repl* is set true only for the REPL's
+   extent (shen.repl below), so the exit is scoped to REPL command input —
+   a program's own (read-byte (stinput)) still gets -1 at EOF. A deliberate,
+   documented improvement over canonical, matching the other ports. *\
+(define _scm.repl-active?
+  -> (trap-error (value _scm.*in-repl*) (/. E false)))
+
+(define shen.my-read-byte
+  Stream -> (let B (read-byte Stream)
+              (if (= B -1)
+                  (if (and (_scm.repl-active?)
+                           ((foreign scm.eq?) Stream (value *stinput*)))
+                      ((foreign scm.exit) 0)
+                      -1)
+                  B)))
+
+(define shen.repl
+  -> (do (set _scm.*in-repl* true) (do (shen.credits) (shen.loop))))
 
 \* factorise *\
 
