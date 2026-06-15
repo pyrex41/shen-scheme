@@ -13,13 +13,18 @@
 (define integer?
   Val -> ((foreign scm.integer?) Val))
 
+\* *hush* gates only the standard-output stream, NOT arbitrary file streams:
+   an explicit `pr` to a file is user intent, not chatter to be silenced.
+   (Matches the cross-port agreement; the bare kernel `pr` suppresses every
+   sink under *hush*, which silenced file writes here.) *\
 (define pr
   String Sink -> (trap-error
-                  (let P (if ((foreign scm.textual-port?) Sink)
-                             ((foreign scm.or) (value *hush*) ((foreign scm.put-string) Sink String))
-                             ((foreign scm.or) (value *hush*) ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
+                  (let Hushed ((foreign scm.and) (value *hush*) ((foreign scm.eq?) Sink (value *stoutput*)))
+                       P (if ((foreign scm.textual-port?) Sink)
+                             ((foreign scm.or) Hushed ((foreign scm.put-string) Sink String))
+                             ((foreign scm.or) Hushed ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
                        F ((foreign scm.and)
-                            (not (value *hush*))
+                            (not Hushed)
                             ((foreign scm.should-flush?) Sink)
                             ((foreign scm.flush-output-port) Sink))
                     String)
