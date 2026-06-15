@@ -111,6 +111,32 @@
 (define shen.char-stinput? S -> false)
 (define shen.char-stoutput? S -> false)
 
+\* REPL stdin-EOF handling.
+
+   Canonical Shen loops forever when the REPL's standard input is exhausted:
+   the kernel reader hits EOF, raises an error, shen.loop catches it with
+   trap-error, prints it, and recurses — re-reading EOF endlessly.
+
+   We detect EOF at the input layer (not by string-matching the downstream
+   error) and exit cleanly. _scm.*in-repl* is set true only for the REPL's
+   extent (shen.repl below), so the exit is scoped to REPL command input —
+   a program's own (read-byte (stinput)) still gets -1 at EOF. A deliberate,
+   documented improvement over canonical, matching the other ports. *\
+(define _scm.repl-active?
+  -> (trap-error (value _scm.*in-repl*) (/. E false)))
+
+(define shen.my-read-byte
+  Stream -> (let B (read-byte Stream)
+              (if (= B -1)
+                  (if (and (_scm.repl-active?)
+                           ((foreign scm.eq?) Stream (value *stinput*)))
+                      ((foreign scm.exit) 0)
+                      -1)
+                  B)))
+
+(define shen.repl
+  -> (do (set _scm.*in-repl* true) (do (shen.credits) (shen.loop))))
+
 \* factorise *\
 
 \\ Branches are pushed into a stack instead of being evaluated
@@ -126,25 +152,9 @@
 
 \* To print location of errors *\
 
-(package shen [scm.error-location scm.exit scm.string-length scm.substring]
+(package shen [scm.error-location]
 
-\* The kernel reader raises "...empty stream" when the standard input reaches
-   EOF with nothing buffered (kl/reader.kl shen.read-loop:
-   (simple-error "error: empty stream")). Match it by the stable "empty stream"
-   suffix rather than the full literal, so a future change to the "error: "
-   prefix (or added context around it) still detects EOF. *\
-(define eof-message?
-  Msg -> (let Suffix "empty stream"
-              LM ((foreign scm.string-length) Msg)
-              LS ((foreign scm.string-length) Suffix)
-              (and (>= LM LS)
-                   (= Suffix ((foreign scm.substring) Msg (- LM LS) LM)))))
-
-\* At the REPL toplevel an exhausted standard input (e.g. a closed stdin pipe)
-   means we are done, so exit cleanly instead of printing the error and
-   re-looping forever. *\
 (define toplevel-display-exception
-  E -> ((foreign scm.exit) 0) where (eof-message? (error-to-string E))
   E -> (let Msg (error-to-string E)
             Loc ((foreign scm.error-location) E)
         (if (interactive-error? E Loc Msg)
