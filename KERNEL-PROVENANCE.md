@@ -83,6 +83,12 @@ which the refresh removed.
   shortcut assumed dict-backed storage and is removed; `get` now goes through
   the standard guarded path and calls the kernel `get` defun over the property
   vector. (`tests/compiler-tests.shen` updated to match.)
+- **`hash` 0-guard.** `src/overrides.shen` overrides `hash` (replacing the
+  kernel defun). The refresh now buckets the property vector with
+  `(hash key (limit V))`, where bucket 0 is reserved (address 0 holds the
+  vector length). The kernel `hash` returns 1 instead of 0; the override now
+  does the same. Without this, a key hashing to 0 corrupts the store — the same
+  hazard other ports hit when overriding `hash`.
 
 ## Remaining work
 
