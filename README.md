@@ -1,4 +1,4 @@
-[![Shen Version](https://img.shields.io/badge/shen-41.2-blue.svg)](https://github.com/Shen-Language)
+[![Shen Version](https://img.shields.io/badge/shen-S41.2%20(2026--07--11%20refresh)-blue.svg)](https://github.com/Shen-Language)
 [![build](https://github.com/tizoc/shen-scheme/workflows/build/badge.svg)](https://github.com/tizoc/shen-scheme/actions?query=workflow%3Abuild)
 
 Shen/Scheme, a Scheme port of the Shen language
@@ -78,7 +78,15 @@ To build on Windows, an environment with curl, 7zip, make and Visual Studio 2017
 
 This step is only necessary if cloning from this repository, the release tarballs include pregenerated `.scm` files.
 
-To build from source, obtain a [copy of the Shen kernel distribution](https://github.com/Shen-Language/shen-sources/releases) and copy the `.kl` files to the `kl/` directory of shen-scheme. Then with a working Shen implementation do:
+To build from source, populate the `kl/` directory with the Shen kernel:
+
+    make fetch-kernel
+
+This fetches Mark Tarver's S41.2 (2026-07-11 refresh) kernel plus the standard
+library and command-line launcher retained from the community shen-sources 41.2
+release. See [KERNEL-PROVENANCE.md](KERNEL-PROVENANCE.md) for the exact sources,
+checksums, and the upstream restructuring this build accommodates. Then with a
+working Shen implementation do:
 
     (load "scripts/build.shen")
     (build program "shen-scheme.scm")

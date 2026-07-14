@@ -151,9 +151,14 @@
  (_scm.kl->scheme [trap-error [<-vector Var [+ 10 10]] [lambda E default]])
  (_scm.kl->scheme [scm.<-vector/or Var [+ 10 10] [freeze default]]))
 
+\* `get` is no longer specially optimised to scm.get/or: that shortcut assumed
+   the property store was a hashtable-backed dict, but Tarver's S41.2 refresh
+   stores properties on a plain absvector and `get` is an ordinary kernel defun.
+   trap-error over `get` now uses the standard guarded path. *\
 (assert-equal
  (_scm.kl->scheme [trap-error [get Var prop Dict] [lambda E default]])
- (_scm.kl->scheme [scm.get/or Var prop Dict [freeze default]]))
+ [(intern "guard") [E [else [quote default]]]
+  [(intern "kl:get") [quote Var] [quote prop] [quote Dict]]])
 
 (assert-equal
   (_scm.kl->scheme [scm. "(+ 1 2)"])

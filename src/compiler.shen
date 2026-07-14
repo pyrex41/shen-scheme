@@ -189,10 +189,15 @@
        [[CompiledTest CompiledBody]
         | CompiledRest]))
 
+\* NOTE: `get` used to be optimised here too (scm.get/or), but that shortcut
+   assumed the Shen property store was a hashtable-backed dict. In Tarver's
+   S41.2 refresh the store is a plain absvector (*property-vector*) and `get`
+   is an ordinary kernel defun over it, so `(trap-error (get ...) ...)` must go
+   through the normal path and call the kernel `get`. *\
 (define emit-trap-error
   [F | Rest] Handler Scope <- (emit-trap-error-optimize [F | Rest] Handler Scope)
       where (and (value *compiling-shen-sources*)
-                 (element? F [value <-vector <-address get]))
+                 (element? F [value <-vector <-address]))
 
   Exp [lambda E Handler] Scope
   -> [(intern "guard") [E [else (compile-expression Handler [E | Scope])]]
@@ -221,8 +226,6 @@ but not otherwise.
   -> (compile-expression [scm.<-vector/or X N [freeze Handler]] Scope)
   [<-address X N] [lambda E Handler] Scope
   -> (compile-expression [scm.<-address/or X N [freeze Handler]] Scope)
-  [get X P D] [lambda E Handler] Scope
-  -> (compile-expression [scm.get/or X P D [freeze Handler]] Scope)
   _ _ _ -> (fail))
 
 (define emit-equality-check
