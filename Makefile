@@ -173,19 +173,23 @@ fetch-kernel:
 	cp S41.2-refresh/S41/KLambda/*.kl $(klsources_dir)/
 
 # Generate kl/stlib.kl from Tarver's Lib/StLib .shen sources (see
-# scripts/gen-stlib.shen and KERNEL-PROVENANCE.md). Requires a bootstrap Shen
-# ($(SHEN), e.g. an existing shen-scheme). Build order from scratch:
+# scripts/gen-stlib-driver.shen, scripts/gen-stlib-lib.shen, KERNEL-PROVENANCE.md).
+# Requires a bootstrap Shen ($(SHEN), e.g. an existing shen-scheme). Build order
+# from scratch:
 #   make fetch-kernel && make SHEN=shen-scheme gen-stlib && make precompile && make
 # gen-stlib builds a throwaway kernel-only stage-1 boot (no standard library, so
 # registering Tarver's StLib macros can't collide with an existing one), then
-# runs the generator on it. The subsequent `make precompile && make` rebuild the
-# real image with the generated kl/stlib.kl.
+# drives the generator through that boot's REPL: it wraps eval-kl, loads
+# install.shen, and captures the compiled defuns + reconstructs the arity / macro
+# / systemf / type registrations. The generator is piped to the REPL (not `script`)
+# because the `(foreign scm.)` eval-kl wrap only compiles on the REPL path. The
+# subsequent `make precompile && make` rebuild the real image with kl/stlib.kl.
 .PHONY: gen-stlib
 gen-stlib:
 	$(SHEN) script scripts/do-build-stage1.shen > /dev/null
 	: > $(compiled_dir)/stlib.scm
 	$(MAKE) $(exe) $(bootfile)
-	./$(exe) script scripts/gen-stlib.shen
+	./$(exe) < scripts/gen-stlib-driver.shen
 	# discard the throwaway stage-1 artifacts so the real build rebuilds cleanly
 	rm -f $(compiled_dir)/stlib.scm shen-scheme.scm $(bootfile) $(exe)
 

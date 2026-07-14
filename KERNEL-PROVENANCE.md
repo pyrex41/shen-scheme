@@ -51,29 +51,43 @@ Relative to the community `ShenOSKernel-41.2`:
 
 shen-scheme compiles the standard library into the boot image. Tarver's refresh
 ships it as lazy `.shen` sources under `Lib/StLib`, so `make gen-stlib`
-(`scripts/gen-stlib.shen`) regenerates `kl/stlib.kl` from those sources; the
-community `ShenOSKernel-41.2` `stlib.kl` is **no longer used**.
+regenerates `kl/stlib.kl` from those sources; the community `ShenOSKernel-41.2`
+`stlib.kl` is **no longer used**.
 
-Generation runs in a throwaway **kernel-only stage-1** shen-scheme
-(`scripts/do-build-stage1.shen`, built with `_scm.*build-stage1*` dropping
-stlib) so that registering StLib's own macros can't collide with an existing
-standard library. It processes the sources in upstream `install.shen` order;
-`read-file` package-expands and macroexpands each form (macro/`.dtype` files are
-evaluated first so dependents expand), and it emits: `define` → defun (arity
-recorded), `declare` → type declaration, `set` → global initialiser, plus a
-trailing `(shen.initialise-arity-table …)` — shen-scheme does not derive arity
-from a bare defun (this is the `(fn filter)` / `arity = -1` quirk other ports hit
-on render/compile paths), so explicit registration is required.
+Generation (`scripts/gen-stlib-driver.shen` + `scripts/gen-stlib-lib.shen`) runs
+in a throwaway **kernel-only stage-1** shen-scheme (`scripts/do-build-stage1.shen`,
+built with `_scm.*build-stage1*` dropping stlib) so that registering StLib's own
+macros can't collide with an existing standard library. It **intercepts `eval-kl`
+during a genuine `install.shen` load** — the approach ShenScript's generator uses:
+
+- `kl:eval-kl` is wrapped (via the REPL's `(foreign scm.)` escape — hence the
+  generator is piped to the REPL, not run with `script`) to record every compiled
+  `defun` as `install.shen` loads the sources through the kernel's own loader.
+  Because the real loader runs, macros, datatypes, and types register as genuine
+  side effects, and function bodies are fully macroexpanded.
+- After the load, the registrations the community `stlib.initialise-*` baked are
+  reconstructed from the post-load environment: **macros** from a `*macros*` diff
+  → `(shen.record-macro …)`; **arities** for every captured defun (externals *and*
+  the internal macro-expansion helpers, which also need an arity to be applied)
+  → `(update-lambda-table …)`; **systemf** for every stlib external; and `set` /
+  `declare` forms harvested from the sources (these do not pass through eval-kl).
+- `install.shen` is loaded **hushed** (`*hush*`), since shen-scheme's `pr` override
+  otherwise corrupts the output path for later eval (a cross-port `pr`/`*hush*`
+  hazard).
+
+This closes the reader-macro / datatype-typing regression: `(sqrt 2)`, `for`-loops,
+string sugar, and datatype typechecks (`(tc +) (rational? (r# 3 4))`) all work.
 
 Two behavioural notes vs the community `stlib.kl`: (1) exported stdlib functions
-are **not** marked as system functions — the `install.shen` `systemf` tail is not
-applied — so a user `(define sq …)` is still accepted (upstream would refuse it);
-non-exported functions are package-namespaced (`reduce` → `list.reduce`) via the
-package expansion. (2) The `(datatype …)` `name#type` recognisers (e.g.
-`print#type`, `maths#type`) are **excluded by construction** — the generator only
-emits explicit `define`/`declare`/`set`, never datatype forms — so they cannot
-shadow a kernel/user datatype of the same name (a hazard for generators that
-capture defuns from an `install.shen` *load*).
+**are** marked as system functions (the `install.shen` `systemf` tail is
+reproduced), so a user `(define filter …)` is refused, matching upstream;
+non-exported functions are package-namespaced (`reduce` → `list.reduce`). (2) The
+`(datatype …)` `name#type` recognisers (`print#type`, `maths#type`, …) are
+**excluded** from the baked defuns (`g2-hashtype?`) so a persisted `print#type`
+can't shadow a user/kernel `print` datatype (the shen-julia hazard). Datatype
+types still check through the emitted `declare`s; the `(datatype …)` inference
+*rules* for the two stlib datatypes (`maths`, `print`) are not re-emitted, which
+matters only under `(tc +)` for those two datatypes.
 
 The command-line front end **`extension-launcher.kl`** is still retained from
 community `ShenOSKernel-41.2` (`shen.x.launcher.launch-shen`, driven by
@@ -81,26 +95,6 @@ community `ShenOSKernel-41.2` (`shen.x.launcher.launch-shen`, driven by
 reference is the `*hush*` variable, not the removed `hush` function).
 `extension-features.kl` is **dropped**: it calls `shen.set-lambda-form-entry`,
 which the refresh removed.
-
-### Not yet reproduced from `Lib/StLib` (see "Remaining work")
-
-- User-facing **reader macros** (`Maths/Strings/Vectors` `macros.shen`): implicit
-  optional args — `(sqrt N)` for `(sqrt N (tolerance))`, `for`-loops, string
-  `s-op` sugar. Stdlib functions are fully macroexpanded and callable; only the
-  call-site sugar is absent (so `(expt 2 10 (tolerance))` works, `(expt 2 10)`
-  does not). The community `stlib.kl` registered these via
-  `stlib.initialise-macros`; matching that is follow-up.
-- `(datatype …)` **typechecker rules** (e.g. `maths`): skipped — they matter only
-  under `(tc +)`, and the build/tests run untyped.
-- `systemf` external declarations and synonyms from `install.shen`'s tail.
-
-The macro expanders and datatype functions are defined as a side effect of
-`read-file`/`eval` but are not returned by `read-file`, and shen-scheme has no
-`ps`/source-retrieval to dump them. The robust way to capture them (and match
-the community `stlib.initialise-{macros,datatypes}` via `shen.record-macro` /
-`shen.process-datatype`) is to intercept `eval-kl` while genuinely loading
-`install.shen`, recording every compiled defun — the approach ShenScript's
-generator uses. That is the recommended follow-up to close this gap.
 
 ## Build adaptations (see `scripts/build.shen`, `src/compiler.shen`)
 
@@ -130,10 +124,11 @@ generator uses. That is the recommended follow-up to close this gap.
 
 ## Remaining work
 
-- Register the StLib **reader macros** and `(datatype …)`/`systemf` metadata so
-  the standard library matches the community `stlib.kl` at call-site sugar and
-  under `(tc +)` (see "Not yet reproduced" above). Stdlib functions are all
-  present and callable today; this is optional-argument sugar and typing.
+- Re-emit the `(datatype …)` inference *rules* for the two stlib datatypes
+  (`maths`, `print`) so they type-check under `(tc +)` (their `name#type`
+  recognisers are deliberately not baked, to avoid shadowing). Every other stdlib
+  function, macro, and declared type — including the `rational`/`complex`/`numeral`
+  types — is reproduced.
 - The `shen.dict*` overrides in `src/overrides.shen` are now dead code (the
   kernel no longer defines a dict type). They are kept, self-contained over
   Scheme hashtables, so `(shen.dict ...)` still works as a shen-scheme
