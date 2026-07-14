@@ -47,28 +47,56 @@ Relative to the community `ShenOSKernel-41.2`:
   `shen.initialise-lambda-forms` → `shen.initialise-lambda-tables`; no
   `shen.set-lambda-form-entry`.
 
-## What shen-scheme retains from community 41.2, and why
+## Standard library: generated from Tarver's `Lib/StLib` sources
 
-Tarver's refresh unbundles the standard library, but shen-scheme has always
-compiled it into the boot image. To preserve the standard library and the REPL
-front end without a `Lib/StLib`-source build path (see "Remaining work"), two
-files are taken from the community `ShenOSKernel-41.2` release:
+shen-scheme compiles the standard library into the boot image. Tarver's refresh
+ships it as lazy `.shen` sources under `Lib/StLib`, so `make gen-stlib`
+(`scripts/gen-stlib.shen`) regenerates `kl/stlib.kl` from those sources; the
+community `ShenOSKernel-41.2` `stlib.kl` is **no longer used**.
 
-- **`stlib.kl`** — the standard library (math, rationals, complex, lists,
-  strings, vectors, tuples, IO). Verified to contain no dict references and no
-  dependency on removed kernel functions.
-- **`extension-launcher.kl`** — the command-line front end
-  (`shen.x.launcher.launch-shen`) that `shen-scheme.run-shen` drives.
-  Compatible with the refresh (its only `hush` reference is the `*hush*`
-  variable, not the removed `hush` function).
+Generation runs in a throwaway **kernel-only stage-1** shen-scheme
+(`scripts/do-build-stage1.shen`, built with `_scm.*build-stage1*` dropping
+stlib) so that registering StLib's own macros can't collide with an existing
+standard library. It processes the sources in upstream `install.shen` order;
+`read-file` package-expands and macroexpands each form (macro/`.dtype` files are
+evaluated first so dependents expand), and it emits: `define` → defun (arity
+recorded), `declare` → type declaration, `set` → global initialiser, plus a
+trailing `(shen.initialise-arity-table …)` — shen-scheme does not derive arity
+from a bare defun (this is the `(fn filter)` / `arity = -1` quirk other ports hit
+on render/compile paths), so explicit registration is required.
 
+The command-line front end **`extension-launcher.kl`** is still retained from
+community `ShenOSKernel-41.2` (`shen.x.launcher.launch-shen`, driven by
+`shen-scheme.run-shen`); it is compatible with the refresh (its only `hush`
+reference is the `*hush*` variable, not the removed `hush` function).
 `extension-features.kl` is **dropped**: it calls `shen.set-lambda-form-entry`,
 which the refresh removed.
 
+### Not yet reproduced from `Lib/StLib` (see "Remaining work")
+
+- User-facing **reader macros** (`Maths/Strings/Vectors` `macros.shen`): implicit
+  optional args — `(sqrt N)` for `(sqrt N (tolerance))`, `for`-loops, string
+  `s-op` sugar. Stdlib functions are fully macroexpanded and callable; only the
+  call-site sugar is absent (so `(expt 2 10 (tolerance))` works, `(expt 2 10)`
+  does not). The community `stlib.kl` registered these via
+  `stlib.initialise-macros`; matching that is follow-up.
+- `(datatype …)` **typechecker rules** (e.g. `maths`): skipped — they matter only
+  under `(tc +)`, and the build/tests run untyped.
+- `systemf` external declarations and synonyms from `install.shen`'s tail.
+
+The macro expanders and datatype functions are defined as a side effect of
+`read-file`/`eval` but are not returned by `read-file`, and shen-scheme has no
+`ps`/source-retrieval to dump them. The robust way to capture them (and match
+the community `stlib.initialise-{macros,datatypes}` via `shen.record-macro` /
+`shen.process-datatype`) is to intercept `eval-kl` while genuinely loading
+`install.shen`, recording every compiled defun — the approach ShenScript's
+generator uses. That is the recommended follow-up to close this gap.
+
 ## Build adaptations (see `scripts/build.shen`, `src/compiler.shen`)
 
-- `*shen-files*`: dropped `dict`, `init`; added `backend`; kept `stlib` and
-  `extension-launcher`.
+- `*shen-files*`: dropped `dict`, `init`; added `backend`; kept `extension-launcher`.
+  `stlib` is compiled from the generated `kl/stlib.kl` (above), or dropped
+  entirely under `_scm.*build-stage1*` for the generator host.
 - Removed the seeded `(shen.initialise)` init call (the function no longer
   exists; the kernel self-initialises via its top-level forms).
 - **Init ordering.** Non-defun top-level forms are collected into `*init-code*`
@@ -92,8 +120,10 @@ which the refresh removed.
 
 ## Remaining work
 
-- Build the standard library from Tarver's `Lib/StLib` `.shen` sources rather
-  than retaining the community `stlib.kl`, to fully track the refresh.
+- Register the StLib **reader macros** and `(datatype …)`/`systemf` metadata so
+  the standard library matches the community `stlib.kl` at call-site sugar and
+  under `(tc +)` (see "Not yet reproduced" above). Stdlib functions are all
+  present and callable today; this is optional-argument sugar and typing.
 - The `shen.dict*` overrides in `src/overrides.shen` are now dead code (the
   kernel no longer defines a dict type). They are kept, self-contained over
   Scheme hashtables, so `(shen.dict ...)` still works as a shen-scheme
