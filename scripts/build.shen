@@ -33,11 +33,20 @@
 
 (set *maximum-print-sequence-size* 10000)
 
+\* Kernel file set for the Tarver S41.2 (2026-07-11 refresh).
+   Refresh drops dict.kl (property store is now a hash-indexed vector of
+   alists via shen.change-pointer-value / shen.remove-pointer in sys.kl) and
+   init.kl (shen.initialise is gone; initialisation is now top-level forms in
+   declarations.kl + declare forms in types.kl), and adds backend.kl (an inert
+   cl.* KLambda->CommonLisp backend, harmless under Scheme). stlib and the two
+   extension-* files are NOT part of Tarver's kernel — upstream ships the
+   standard library as lazy .shen sources under Lib/StLib — so they are
+   retained here from the community shen-sources 41.2 packaging to preserve the
+   standard library until a StLib-source build path is added. *\
 (set *shen-files*
       ["toplevel"
        "core"
        "sys"
-       "dict"
        "sequent"
        "yacc"
        "reader"
@@ -45,14 +54,19 @@
        "track"
        "load"
        "writer"
+       "backend"
        "macros"
        "declarations"
        "types"
        "t-star"
-       "init"
        "stlib"
-       "extension-features"
+       \\ extension-launcher (the command-line front end used by
+       \\ shen-scheme.run-shen) is a community shen-sources addition but is
+       \\ compatible with Tarver's refresh, so it is retained.
        "extension-launcher"
+       \\ extension-features calls shen.set-lambda-form-entry, which Tarver's
+       \\ S41.2 refresh removed, so it is dropped.
+       \\"extension-features"
        \\"extension-factorise-defun"
        \\"extension-programmable-pattern-matching"
        ])
@@ -156,9 +170,14 @@
    kernel that is not a function definition has to be
    kept until the end *\
 
+\* Tarver S41.2 refresh removed shen.initialise; the kernel now initialises
+   itself through top-level forms in declarations.kl (property vector, arity
+   table, lambda table) and declare forms in types.kl, which build.shen already
+   collects into *init-code* per file. Only the shen-scheme feature init is
+   seeded here. *\
 (set *init-code* [
-  [shen.initialise]
-  [shen.x.features.initialise [cons (intern "shen/scheme") []]]
+  \\ shen.x.features lived in the community extension-features.kl, dropped above.
+  \\[shen.x.features.initialise [cons (intern "shen/scheme") []]]
   \\[shen.x.factorise-defun.initialise]
   \\[shen.x.programmable-pattern-matching.initialise]
 ])
@@ -216,23 +235,46 @@
           StLib (pr (make-string "(kl:stlib.initialise)~%~%" S) Out)
        (close Out)))
 
+\* Compilation order matters because non-defun top-level forms are collected
+   into *init-code* in the order files are compiled, and that is the order they
+   run at start-up.
+
+   The Tarver S41.2 refresh has the kernel initialise itself through top-level
+   forms in declarations.kl (property vector, arity table, lambda table) and
+   types.kl (declares) — there is no longer a single shen.initialise seeded to
+   run first. The shen-scheme front end (shen-scheme-extensions.kl,
+   compiler.kl) contributes init forms of its own (update-lambda-table, etc.)
+   that call put/value against those kernel tables, so the kernel init must be
+   collected FIRST. We therefore compile: overrides.kl (before load-overrides,
+   so its own definitions are emitted rather than skipped), then the kernel,
+   then the remaining shen-scheme files.
+
+   Ordering within the shen-scheme files matters too:
+   - compiler.kl's only init form, (set _scm.*compiling-function* ...), has no
+     dependencies and MUST precede the kernel's types.kl (declare ...) forms,
+     which drive the runtime KL->Scheme compiler at boot;
+   - shen-scheme-extensions.kl's init (update-lambda-table ...) writes arities
+     into the kernel property vector / lambda table set up by declarations.kl,
+     so it must come AFTER the kernel. *\
 (define build
   As Filename
   -> (do (compile-shen-file "src/compiler.shen" "kl/compiler.kl")
          \\(compile-shen-file "src/factorize-patterns.shen" "kl/factorize-patterns.kl")
          (compile-shen-file "src/overrides.shen" "kl/overrides.kl")
          (compile-shen-file "src/shen-scheme-extensions.shen" "kl/shen-scheme-extensions.kl")
-         (for-each (/. F (compile-kl-file
-                          (shen-scheme-license)
-                          (@s "kl/" F ".kl")
-                          (@s "compiled/" F ".scm")))
-                   (value *shen-scheme-files*))
+         (compile-kl-file (shen-scheme-license)
+                          "kl/overrides.kl" "compiled/overrides.scm")
+         (compile-kl-file (shen-scheme-license)
+                          "kl/compiler.kl" "compiled/compiler.scm")
          (load-overrides)
          (for-each (/. F (compile-kl-file
                           (shen-license)
                           (@s "kl/" F ".kl")
                           (@s "compiled/" F ".scm")))
                    (value *shen-files*))
+         (compile-kl-file (shen-scheme-license)
+                          "kl/shen-scheme-extensions.kl"
+                          "compiled/shen-scheme-extensions.scm")
          (compile-init-code)
          (compile-shen-as As Filename)
          done))
@@ -275,7 +317,6 @@
 (include c#34;compiled/toplevel.scmc#34;)
 (include c#34;compiled/core.scmc#34;)
 (include c#34;compiled/sys.scmc#34;)
-(include c#34;compiled/dict.scmc#34;)
 (include c#34;compiled/sequent.scmc#34;)
 (include c#34;compiled/yacc.scmc#34;)
 (include c#34;compiled/reader.scmc#34;)
@@ -283,13 +324,13 @@
 (include c#34;compiled/track.scmc#34;)
 (include c#34;compiled/load.scmc#34;)
 (include c#34;compiled/writer.scmc#34;)
+(include c#34;compiled/backend.scmc#34;)
 (include c#34;compiled/macros.scmc#34;)
 (include c#34;compiled/declarations.scmc#34;)
 (include c#34;compiled/types.scmc#34;)
 (include c#34;compiled/t-star.scmc#34;)
-(include c#34;compiled/init.scmc#34;)
 (include c#34;compiled/stlib.scmc#34;)
-(include c#34;compiled/extension-features.scmc#34;)
+;; (include c#34;compiled/extension-features.scmc#34;)
 (include c#34;compiled/extension-launcher.scmc#34;)
 ;; (include c#34;compiled/extension-factorise-defun.scmc#34;)
 ;; (include c#34;compiled/extension-programmable-pattern-matching.scmc#34;)

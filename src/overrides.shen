@@ -1,8 +1,17 @@
 \* Copyright (c) 2012-2021 Bruno Deferrari.  All rights reserved. *\
 \* BSD 3-Clause License: http://opensource.org/licenses/BSD-3-Clause *\
 
+\* This overrides the kernel `hash` outright (registered in overrides.shen, so
+   the kernel defun is dropped from the generated code). In Tarver's S41.2
+   refresh `put`/`get` bucket the property absvector with `(hash key (limit V))`,
+   and bucket 0 is reserved -- `limit` reads address 0 (the vector length). The
+   kernel `hash` guards this with `(if (= W 0) 1 W)`; the override MUST do the
+   same or a key that hashes to 0 collides with the length slot and corrupts the
+   store. (Because this single override is used at both populate and lookup time,
+   the hashing algorithm need not match the kernel's -- only the 0 guard must.) *\
 (define hash
-  Val Bound -> ((foreign scm.fxmod) ((foreign scm.equal-hash) Val) Bound))
+  Val Bound -> (let R ((foreign scm.fxmod) ((foreign scm.equal-hash) Val) Bound)
+                 (if ((foreign scm.fx=?) R 0) 1 R)))
 
 (define not
   Val -> ((foreign scm.not) Val))

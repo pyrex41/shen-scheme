@@ -57,6 +57,16 @@ endif
 
 shenversion ?= 41.2
 csversion ?= 10.3.0
+
+# Kernel sourcing -- see KERNEL-PROVENANCE.md.
+# The kernel proper is Mark Tarver's S41.2 "2026-07-11 refresh": the SAME 41.2
+# version number but a RESTRUCTURED kernel (15 KLambda files; no dict.kl,
+# init.kl, stlib.kl, compiler.kl or extension-*.kl). Its standard library ships
+# separately as lazy .shen sources under Lib/StLib, so stlib.kl and the
+# command-line launcher (extension-launcher.kl) are taken from the community
+# shen-sources 41.2 release to preserve the standard library and REPL front end.
+tarver_zip_url ?= https://www.shenlanguage.org/Download/S41.2.zip
+tarver_zip_sha256 ?= 51becbfd60fa8c93c3f8ae5b20b948eaa84c4b1d14ad2f5d2a056002a53ee836
 build_dir ?= _build
 chez_build_dir ?= $(build_dir)$(S)chez
 csdir ?= $(chez_build_dir)$(S)csv$(csversion)
@@ -139,9 +149,24 @@ $(bootfile): $(psboot) $(csboot) shen-scheme.scm src/* $(compiled_dir)/*.scm
 
 .PHONY: fetch-kernel
 fetch-kernel:
+	rm -f $(klsources_dir)/dict.kl $(klsources_dir)/init.kl \
+	      $(klsources_dir)/extension-features.kl \
+	      $(klsources_dir)/extension-expand-dynamic.kl \
+	      $(klsources_dir)/extension-programmable-pattern-matching.kl
+	# (1) Community shen-sources 41.2: keep ONLY the unbundled standard library
+	#     (stlib.kl) and the command-line launcher (extension-launcher.kl).
 	curl -LO 'https://github.com/Shen-Language/shen-sources/releases/download/shen-$(shenversion)/ShenOSKernel-$(shenversion).tar.gz'
 	tar xzf ShenOSKernel-$(shenversion).tar.gz
-	cp ShenOSKernel-$(shenversion)/klambda/*.kl $(klsources_dir)/
+	cp ShenOSKernel-$(shenversion)/klambda/stlib.kl $(klsources_dir)/
+	cp ShenOSKernel-$(shenversion)/klambda/extension-launcher.kl $(klsources_dir)/
+	# (2) Tarver S41.2 (2026-07-11 refresh): the 15 kernel KLambda files. These
+	#     overwrite the community core/sys/... so the kernel proper is Tarver's.
+	curl -LO '$(tarver_zip_url)'
+	( command -v sha256sum >/dev/null 2>&1 && echo '$(tarver_zip_sha256)  S41.2.zip' | sha256sum -c - ) || \
+	  echo '$(tarver_zip_sha256)  S41.2.zip' | shasum -a 256 -c -
+	rm -rf S41.2-refresh && mkdir S41.2-refresh
+	cd S41.2-refresh && unzip -q ../S41.2.zip
+	cp S41.2-refresh/S41/KLambda/*.kl $(klsources_dir)/
 
 .PHONY: fetch-prebuilt
 fetch-prebuilt:

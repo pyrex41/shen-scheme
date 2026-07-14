@@ -8,3 +8,9 @@
 *.o
 /_build
 /_dist
+# fetch-kernel download artifacts
+/ShenOSKernel-*
+/ShenOSKernel-*.tar.gz
+/S41.2.zip
+/S41.2-refresh
+/shen-scheme-v*-bin.tar.gz
