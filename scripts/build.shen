@@ -232,7 +232,7 @@
           ScmS (map (function sexp->string) Scm)
           P (pr (shen-license) Out)
           F (for-each (/. S (pr (make-string "~A~%~%" S) Out) ) ScmS)
-          StLib (pr (make-string "(kl:stlib.initialise)~%~%" S) Out)
+          StLib (pr (make-string "(guard (e (#t #f)) (kl:stlib.initialise))~%~%" S) Out)
        (close Out)))
 
 \* Compilation order matters because non-defun top-level forms are collected
@@ -271,7 +271,11 @@
                           (shen-license)
                           (@s "kl/" F ".kl")
                           (@s "compiled/" F ".scm")))
-                   (value *shen-files*))
+                   \\ Stage-1 (kernel-only, for the StLib generator host) drops
+                   \\ stlib so the build needs no pre-existing standard library.
+                   (if (trap-error (value _scm.*build-stage1*) (/. E false))
+                       (build.filter (/. F (not (= F "stlib"))) (value *shen-files*))
+                       (value *shen-files*)))
          (compile-kl-file (shen-scheme-license)
                           "kl/shen-scheme-extensions.kl"
                           "compiled/shen-scheme-extensions.scm")

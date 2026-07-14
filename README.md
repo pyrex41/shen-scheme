@@ -78,15 +78,19 @@ To build on Windows, an environment with curl, 7zip, make and Visual Studio 2017
 
 This step is only necessary if cloning from this repository, the release tarballs include pregenerated `.scm` files.
 
-To build from source, populate the `kl/` directory with the Shen kernel:
+To build from source, populate the `kl/` directory with the Shen kernel and
+generate the standard library:
 
     make fetch-kernel
+    make SHEN=<a working shen-scheme> gen-stlib
 
-This fetches Mark Tarver's S41.2 (2026-07-11 refresh) kernel plus the standard
-library and command-line launcher retained from the community shen-sources 41.2
-release. See [KERNEL-PROVENANCE.md](KERNEL-PROVENANCE.md) for the exact sources,
-checksums, and the upstream restructuring this build accommodates. Then with a
-working Shen implementation do:
+`fetch-kernel` fetches Mark Tarver's S41.2 (2026-07-11 refresh) kernel (plus the
+command-line launcher from the community shen-sources 41.2 release and the
+`Lib/StLib` sources). `gen-stlib` regenerates `kl/stlib.kl` from those StLib
+`.shen` sources (it builds a throwaway kernel-only stage-1 host to do so). See
+[KERNEL-PROVENANCE.md](KERNEL-PROVENANCE.md) for the exact sources, checksums,
+and the upstream restructuring this build accommodates. Then with a working Shen
+implementation do:
 
     (load "scripts/build.shen")
     (build program "shen-scheme.scm")
