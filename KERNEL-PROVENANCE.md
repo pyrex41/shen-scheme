@@ -65,6 +65,16 @@ trailing `(shen.initialise-arity-table …)` — shen-scheme does not derive ari
 from a bare defun (this is the `(fn filter)` / `arity = -1` quirk other ports hit
 on render/compile paths), so explicit registration is required.
 
+Two behavioural notes vs the community `stlib.kl`: (1) exported stdlib functions
+are **not** marked as system functions — the `install.shen` `systemf` tail is not
+applied — so a user `(define sq …)` is still accepted (upstream would refuse it);
+non-exported functions are package-namespaced (`reduce` → `list.reduce`) via the
+package expansion. (2) The `(datatype …)` `name#type` recognisers (e.g.
+`print#type`, `maths#type`) are **excluded by construction** — the generator only
+emits explicit `define`/`declare`/`set`, never datatype forms — so they cannot
+shadow a kernel/user datatype of the same name (a hazard for generators that
+capture defuns from an `install.shen` *load*).
+
 The command-line front end **`extension-launcher.kl`** is still retained from
 community `ShenOSKernel-41.2` (`shen.x.launcher.launch-shen`, driven by
 `shen-scheme.run-shen`); it is compatible with the refresh (its only `hush`
