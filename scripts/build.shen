@@ -15,19 +15,12 @@
 *\
 
 \\ Required for compiling newer versions with 0.18
-(set shen.x.factorise-defun.*selector-handlers* [])
-(set shen.x.factorise-defun.*selector-handlers-reg* [])
 (trap-error
   ((foreign scm.) "(define-top-level-value kl:global/*property-vector* (make-parameter (kl:value '*property-vector*)))")
   (/. X ignore))
 
-\\(load "kl/extension-factorise-defun.kl")
-\\(load "src/factorize-patterns.shen")
 (load "src/compiler.shen")
 
-(trap-error
-  (shen.x.factorise-defun.initialise)
-  (/. X ignore))
 (_scm.initialize-compiler)
 (set _scm.*compiling-shen-sources* true)
 
@@ -67,7 +60,6 @@
        \\ extension-features calls shen.set-lambda-form-entry, which Tarver's
        \\ S41.2 refresh removed, so it is dropped.
        \\"extension-features"
-       \\"extension-factorise-defun"
        \\"extension-programmable-pattern-matching"
        ])
 
@@ -75,7 +67,6 @@
       ["overrides"
        "shen-scheme-extensions"
        "compiler"
-       \\"factorize-patterns"
        ])
 
 \* Required to avoid errors when processing functions with system names *\
@@ -178,7 +169,6 @@
 (set *init-code* [
   \\ shen.x.features lived in the community extension-features.kl, dropped above.
   \\[shen.x.features.initialise [cons (intern "shen/scheme") []]]
-  \\[shen.x.factorise-defun.initialise]
   \\[shen.x.programmable-pattern-matching.initialise]
 ])
 
@@ -259,7 +249,6 @@
 (define build
   As Filename
   -> (do (compile-shen-file "src/compiler.shen" "kl/compiler.kl")
-         \\(compile-shen-file "src/factorize-patterns.shen" "kl/factorize-patterns.kl")
          (compile-shen-file "src/overrides.shen" "kl/overrides.kl")
          (compile-shen-file "src/shen-scheme-extensions.shen" "kl/shen-scheme-extensions.kl")
          (compile-kl-file (shen-scheme-license)
@@ -317,7 +306,6 @@
 (include c#34;compiled/shen-scheme-extensions.scmc#34;)
 
 (include c#34;compiled/compiler.scmc#34;)
-;(include c#34;compiled/factorize-patterns.scmc#34;)
 (include c#34;compiled/toplevel.scmc#34;)
 (include c#34;compiled/core.scmc#34;)
 (include c#34;compiled/sys.scmc#34;)
@@ -336,7 +324,6 @@
 (include c#34;compiled/stlib.scmc#34;)
 ;; (include c#34;compiled/extension-features.scmc#34;)
 (include c#34;compiled/extension-launcher.scmc#34;)
-;; (include c#34;compiled/extension-factorise-defun.scmc#34;)
 ;; (include c#34;compiled/extension-programmable-pattern-matching.scmc#34;)
 
 (define initialize-shen

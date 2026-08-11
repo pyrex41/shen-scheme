@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Dead pattern-factorisation scaffolding (`src/factorize-patterns.shen`,
+  `shen.push-factorised-branch` / `shen.eval-factorised-branch`,
+  `compile-factorised-branches`, and the commented-out build references). It
+  targeted the `extension-factorise-defun.kl` extension, which upstream no
+  longer ships. The kernel's own `(factorise +)` is unaffected and continues
+  to work.
+
 ## [0.45] - 2026-04-19
 
 ### Changed
