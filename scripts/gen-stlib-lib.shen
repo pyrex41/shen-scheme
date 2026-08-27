@@ -123,7 +123,7 @@
   F [X | Xs] -> [X | (g2-filter F Xs)] where (F X)
   F [_ | Xs] -> (g2-filter F Xs))
 
-(set g2.*dir* "S41.2-refresh/S41/Lib/StLib/")
+(set g2.*dir* "S42-refresh/S42/Lib/StLib/")
 (set g2.*source-files*
      ["Symbols/symbols1.shen" "Symbols/symbols2.shen" "Maths/maths.shen"
       "Maths/rationals.dtype" "Maths/rationals.shen" "Maths/complex.dtype"

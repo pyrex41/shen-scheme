@@ -1,4 +1,4 @@
-[![Shen Version](https://img.shields.io/badge/shen-S41.2%20(2026--07--11%20refresh)-blue.svg)](https://github.com/Shen-Language)
+[![Shen Version](https://img.shields.io/badge/shen-S42.0%20(2026--08--25)-blue.svg)](https://github.com/Shen-Language)
 [![build](https://github.com/tizoc/shen-scheme/workflows/build/badge.svg)](https://github.com/tizoc/shen-scheme/actions?query=workflow%3Abuild)
 
 Shen/Scheme, a Scheme port of the Shen language
@@ -84,7 +84,7 @@ generate the standard library:
     make fetch-kernel
     make SHEN=<a working shen-scheme> gen-stlib
 
-`fetch-kernel` fetches Mark Tarver's S41.2 (2026-07-11 refresh) kernel (plus the
+`fetch-kernel` fetches Mark Tarver's S42.0 (2026-08-25) kernel (plus the
 command-line launcher from the community shen-sources 41.2 release and the
 `Lib/StLib` sources). `gen-stlib` regenerates `kl/stlib.kl` from those StLib
 `.shen` sources (it builds a throwaway kernel-only stage-1 host to do so). See

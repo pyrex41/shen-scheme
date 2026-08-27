@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated kernel to S41.2.
+- Updated kernel to S42.0 (2026-08-25 archive).
 
 ## [0.44] - 2026-03-08
 
