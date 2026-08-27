@@ -59,14 +59,14 @@ shenversion ?= 41.2
 csversion ?= 10.3.0
 
 # Kernel sourcing -- see KERNEL-PROVENANCE.md.
-# The kernel proper is Mark Tarver's S41.2 "2026-07-11 refresh": the SAME 41.2
-# version number but a RESTRUCTURED kernel (15 KLambda files; no dict.kl,
+# The kernel proper is Mark Tarver's S42.0 release (S42.zip; 2026-08-25).
+# The command-line launcher remains the community extension for compatibility.
 # init.kl, stlib.kl, compiler.kl or extension-*.kl). Its standard library ships
 # separately as lazy .shen sources under Lib/StLib, so stlib.kl and the
 # command-line launcher (extension-launcher.kl) are taken from the community
 # shen-sources 41.2 release to preserve the standard library and REPL front end.
-tarver_zip_url ?= https://www.shenlanguage.org/Download/S41.2.zip
-tarver_zip_sha256 ?= 51becbfd60fa8c93c3f8ae5b20b948eaa84c4b1d14ad2f5d2a056002a53ee836
+tarver_zip_url ?= https://www.shenlanguage.org/Download/S42.zip
+tarver_zip_sha256 ?= 30abdc7e5a1e27b7a20109c1ed141e4712885e31f24d9710d16415fbbd4dfb23
 build_dir ?= _build
 chez_build_dir ?= $(build_dir)$(S)chez
 csdir ?= $(chez_build_dir)$(S)csv$(csversion)
@@ -161,16 +161,16 @@ fetch-kernel:
 	curl -LO 'https://github.com/Shen-Language/shen-sources/releases/download/shen-$(shenversion)/ShenOSKernel-$(shenversion).tar.gz'
 	tar xzf ShenOSKernel-$(shenversion).tar.gz
 	cp ShenOSKernel-$(shenversion)/klambda/extension-launcher.kl $(klsources_dir)/
-	# (2) Tarver S41.2 (2026-07-11 refresh): the 15 kernel KLambda files (which
+	# (2) Tarver S42.0 (2026-08-25): the kernel KLambda files (which
 	#     overwrite the community core/sys/...) AND the Lib/StLib .shen sources
-	#     (left in S41.2-refresh/ for `make gen-stlib`). The zip's sha256 covers
+#     (left in S42-refresh/ for `make gen-stlib`). The zip's sha256 covers
 	#     both.
 	curl -LO '$(tarver_zip_url)'
-	( command -v sha256sum >/dev/null 2>&1 && echo '$(tarver_zip_sha256)  S41.2.zip' | sha256sum -c - ) || \
-	  echo '$(tarver_zip_sha256)  S41.2.zip' | shasum -a 256 -c -
-	rm -rf S41.2-refresh && mkdir S41.2-refresh
-	cd S41.2-refresh && unzip -q ../S41.2.zip
-	cp S41.2-refresh/S41/KLambda/*.kl $(klsources_dir)/
+	( command -v sha256sum >/dev/null 2>&1 && echo '$(tarver_zip_sha256)  S42.zip' | sha256sum -c - ) || \
+	  echo '$(tarver_zip_sha256)  S42.zip' | shasum -a 256 -c -
+	rm -rf S42-refresh && mkdir S42-refresh
+	cd S42-refresh && unzip -q ../S42.zip
+	cp S42-refresh/S42/KLambda/*.kl $(klsources_dir)/
 
 # Generate kl/stlib.kl from Tarver's Lib/StLib .shen sources (see
 # scripts/gen-stlib-driver.shen, scripts/gen-stlib-lib.shen, KERNEL-PROVENANCE.md).

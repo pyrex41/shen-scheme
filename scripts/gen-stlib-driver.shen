@@ -12,7 +12,7 @@
 ((foreign scm.) "(define _orig kl:eval-kl)")
 ((foreign scm.) "(set! kl:eval-kl (lambda (f) (set! _cap (cons f _cap)) (_orig f)))")
 (set *hush* true)
-(cd "S41.2-refresh/S41/Lib/StLib/")
+(cd "S42-refresh/S42/Lib/StLib/")
 (load "install.shen")
 (cd "")
 (set *hush* false)

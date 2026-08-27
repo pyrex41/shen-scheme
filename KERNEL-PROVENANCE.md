@@ -1,19 +1,15 @@
 # Shen kernel provenance
 
-shen-scheme builds from Mark Tarver's **S41.2 "2026-07-11 refresh"** of the Shen
-kernel. This is the *same* `41.2` version number as before, but a **restructured
-kernel** — a different lineage from the community `ShenOSKernel-41.2` that
-shen-scheme previously used.
+shen-scheme builds from Mark Tarver's **S42.0 (2026-08-25)** release of the Shen
+kernel. This is a restructured kernel, distinct from the community
+`ShenOSKernel-41.2` previously used.
 
 ## Source of record
 
-- **Canonical mirror (tracked):** `pyrex41/shen-s41.1`
-  (private GitHub mirror of Tarver's uploads)
-  - tag `s41.2-pristine-20260711` (pristine import; import commit `11fc51b`)
-  - `KLambda/*.kl` there are byte-identical to the primary download below.
-- **Primary download:** <https://www.shenlanguage.org/Download/S41.2.zip>
-  - `Last-Modified: 2026-07-11`
-  - `sha256 = 51becbfd60fa8c93c3f8ae5b20b948eaa84c4b1d14ad2f5d2a056002a53ee836`
+- **Canonical source:** the S42 archive linked below (imported 2026-08-25).
+- **Primary download:** <https://www.shenlanguage.org/Download/S42.zip>
+  - `Last-Modified: 2026-08-25`
+  - `sha256 = 30abdc7e5a1e27b7a20109c1ed141e4712885e31f24d9710d16415fbbd4dfb23`
 
 `make fetch-kernel` downloads the primary zip, verifies the sha256, and copies
 the 15 kernel KLambda files into `kl/`.
