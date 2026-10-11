@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fork merged onto upstream shen-scheme 0.50. The kernel is now the community
+  ShenOSKernel 42.2 (Shen-Language/shen-sources tag `shen-42.2`, commit
+  `73507e0`), adopted wholesale and byte-identical, replacing Mark Tarver's
+  S42.0 lineage. `(version)` reports `42.2`. See `KERNEL-PROVENANCE.md`.
+- The REPL stdin-EOF exit now processes a final line that ends at EOF
+  without a trailing newline, as the 42.1+ reader requires, before exiting.
+
+### Removed
+
+- Tarver-lineage build machinery: the `S42.zip` kernel fetch, `make
+  gen-stlib` and its scripts, the stage-1 build, and the absvector
+  property-store workarounds (`hash` bucket-0 guard, `get` trap-error
+  de-optimisation). The community `stlib.kl` is used as shipped.
+- Dead pattern-factorisation scaffolding (`src/factorize-patterns.shen`,
+  `shen.push-factorised-branch` / `shen.eval-factorised-branch`,
+  `compile-factorised-branches`, and the commented-out build references). It
+  targeted the `extension-factorise-defun.kl` extension, which the kernel no
+  longer ships. The kernel's own `(factorise +)` is unaffected and continues
+  to work.
+
+### Fork-specific behaviour (retained)
+
+- `*hush*` gates only the standard-output stream, not explicit file sinks.
+- The REPL exits cleanly on stdin EOF instead of looping on
+  `error: empty stream`.
+- Optional Nix development environment (`flake.nix`).
+
 ## [0.50] - 2026-10-01
 
 ### Changed

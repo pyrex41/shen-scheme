@@ -8,3 +8,8 @@
 *.o
 /_build
 /_dist
+# fetch-kernel / fetch-prebuilt download artifacts
+/ShenOSKernel-*
+/csv*.tar.gz
+/shen-scheme-v*-bin.tar.gz
+/shen-scheme-v*-bin.zip
