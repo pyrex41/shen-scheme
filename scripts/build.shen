@@ -13,9 +13,6 @@
 
 *\
 
-\\ Required for compiling newer versions with 0.18
-(set shen.x.factorise-defun.*selector-handlers* [])
-(set shen.x.factorise-defun.*selector-handlers-reg* [])
 (trap-error
   ((foreign scm.) "(define-top-level-value kl:global/*property-vector* (make-parameter (kl:value '*property-vector*)))")
   (/. X ignore))
@@ -41,14 +38,9 @@
          (register-source-arities Rest))
   [_ | Rest] -> (register-source-arities Rest))
 
-\\(load "kl/extension-factorise-defun.kl")
-\\(load "src/factorize-patterns.shen")
 (register-source-arities (read-file "src/compiler.shen"))
 (load "src/compiler.shen")
 
-(trap-error
-  (shen.x.factorise-defun.initialise)
-  (/. X ignore))
 (_scm.initialize-compiler)
 (set _scm.*compiling-shen-sources* true)
 
@@ -74,7 +66,6 @@
        "stlib"
        "extension-features"
        "extension-launcher"
-       \\"extension-factorise-defun"
        "extension-programmable-pattern-matching"
        "extension-namespaces"
        ])
@@ -88,7 +79,6 @@
        "native-modules"
        "native-app"
        "native-compiler"
-       \\"factorize-patterns"
        ])
 
 \* Required to avoid errors when processing functions with system names *\
@@ -200,7 +190,6 @@
 (set *init-code* [
   [shen.initialise]
   [shen.x.features.initialise [cons (intern "shen/scheme") []]]
-  \\[shen.x.factorise-defun.initialise]
   [shen.x.programmable-pattern-matching.initialise]
   [shen.x.namespaces.initialise]
 ])
@@ -281,7 +270,6 @@
   -> (do (register-port-source-arities
           (value *shen-scheme-files*))
          (compile-shen-file "src/compiler.shen" "kl/compiler.kl")
-         \\(compile-shen-file "src/factorize-patterns.shen" "kl/factorize-patterns.kl")
          (compile-shen-file "src/overrides.shen" "kl/overrides.kl")
          (compile-shen-file "src/native-source.shen" "kl/native-source.kl")
          (compile-shen-file "src/native-codegen.shen" "kl/native-codegen.kl")
@@ -401,7 +389,6 @@
 (include c#34;compiled/native-modules.scmc#34;)
 (include c#34;compiled/native-app.scmc#34;)
 (include c#34;compiled/native-compiler.scmc#34;)
-;(include c#34;compiled/factorize-patterns.scmc#34;)
 (include c#34;compiled/toplevel.scmc#34;)
 (include c#34;compiled/core.scmc#34;)
 (include c#34;compiled/sys.scmc#34;)
@@ -421,7 +408,6 @@
 (include c#34;compiled/stlib.scmc#34;)
 (include c#34;compiled/extension-features.scmc#34;)
 (include c#34;compiled/extension-launcher.scmc#34;)
-;; (include c#34;compiled/extension-factorise-defun.scmc#34;)
 (include c#34;compiled/extension-programmable-pattern-matching.scmc#34;)
 (include c#34;compiled/extension-namespaces.scmc#34;)
 

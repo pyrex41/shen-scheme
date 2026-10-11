@@ -453,19 +453,10 @@ but not otherwise.
                  S (set *compiling-function* (tl (value *compiling-function*)))
               Result))
 
-(define compile-factorised-branches
-  [] -> []
-  [[defun Name Args Body] | Rest] -> [[define [(definition-name Name) | Args] (compile-expression Body Args)]
-                                      | (compile-factorised-branches Rest)])
-
 (define kl->scheme
-  [defun Name Args Body] -> (let Branches (trap-error (value shen.*branches-stack*) (/. E []))
-                                 Clear (set shen.*branches-stack* [])
-                              (compiling-function Name
-                                (freeze [define [(definition-name Name) | Args] |
-                                          (append
-                                            (compile-factorised-branches Branches)
-                                            [(compile-expression Body Args)])])))
+  [defun Name Args Body] -> (compiling-function Name
+                              (freeze [define [(definition-name Name) | Args]
+                                        (compile-expression Body Args)]))
   Exp -> (compile-expression Exp []))
 
 )
