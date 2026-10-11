@@ -1,0 +1,9 @@
+(shen.module
+  (version 1)
+  (name native-example.app)
+  (requires native-example.core)
+  (sources tc- "native-example.app.shen")
+  (extension shen/scheme
+    (mode sealed)
+    (exports run-example module-events)
+    (metadata runtime compiletime)))

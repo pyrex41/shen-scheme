@@ -55,21 +55,31 @@ ifeq ($(os), linux)
 	linkerflags = -lm -ldl -lpthread -luuid
 endif
 
-shenversion ?= 41.2
+shenversion ?= 42.2
 csversion ?= 10.3.0
+prebuilt_version ?= 0.26
 
-# Kernel sourcing -- see KERNEL-PROVENANCE.md.
-# The kernel proper is Mark Tarver's S42.0 release (S42.zip; 2026-08-25).
-# The command-line launcher remains the community extension for compatibility.
-# init.kl, stlib.kl, compiler.kl or extension-*.kl). Its standard library ships
-# separately as lazy .shen sources under Lib/StLib, so stlib.kl and the
-# command-line launcher (extension-launcher.kl) are taken from the community
-# shen-sources 41.2 release to preserve the standard library and REPL front end.
-tarver_zip_url ?= https://www.shenlanguage.org/Download/S42.zip
-tarver_zip_sha256 ?= 30abdc7e5a1e27b7a20109c1ed141e4712885e31f24d9710d16415fbbd4dfb23
+chez_sha256_10.3.0 = d237d9874c6e8b0ccf7758daa8286a6e825528b13ce3b2bca56eb1f73cddbc2c
+kernel_sha256_41.2 = d2182d70453d3e93d13bc20f763efdc18cdb23b481f41afb9943f5e9a0798f61
+kernel_sha256_41.3 = 559beda9a5f710811a7cd9d2d85bf224060e9fc5118e847a1e95edbc7e2e4d26
+kernel_sha256_42.0 = 32e86f58a1f6bbc111712a777a04a592c474e5cd05c2db7be0125f25ba8f8e35
+kernel_sha256_42.1 = 87e0d5e795cd074bfec3975da2aaada22a78e13f44cf53f424cdaf205730c439
+kernel_sha256_42.2 = 1d02273003654d34ec020ae67cb214ecec410dee3350419ff807d82b652678d8
+prebuilt_sha256_0.26_linux = 2859384f3b16cd6cf596084cfff7e2d9d5b31a11df3d1f7c9e1f1746ed6ef798
+prebuilt_sha256_0.26_macOS = a9c321a286daf354dda8ab51eb2b191cbdc339c2087e4490488c88ce462f5dc6
+prebuilt_sha256_0.26_windows = 7c5ab365cdd42aa02bfba90f857fddc7b431672fe01928f14f2b0f1156042549
+
+chez_sha256 ?= $(chez_sha256_$(csversion))
+kernel_sha256 ?= $(kernel_sha256_$(shenversion))
+prebuilt_sha256 ?= $(prebuilt_sha256_$(prebuilt_version)_$(os))
+
+chez_archive = csv$(csversion).tar.gz
+kernel_archive = ShenOSKernel-$(shenversion).tar.gz
+prebuilt_archive = shen-scheme-v$(prebuilt_version)-$(os)-bin$(archiveext)
 build_dir ?= _build
 chez_build_dir ?= $(build_dir)$(S)chez
 csdir ?= $(chez_build_dir)$(S)csv$(csversion)
+chez_source_stamp = $(chez_build_dir)$(S).csv$(csversion)-$(chez_sha256).extracted
 cslicense = $(csdir)$(S)LICENSE
 cscopyright = $(csdir)$(S)NOTICE
 csbootpath = $(csdir)$(S)$(m)$(S)boot$(S)$(m)
@@ -88,9 +98,31 @@ compiled_dir ?= compiled
 exe ?= $(build_dir)/bin/shen-scheme$(binext)
 prefix ?= /usr/local
 home_path ?= "$(prefix)/lib/shen-scheme"
-bootfile = $(build_dir)/lib/shen-scheme/shen.boot
+SHEN_SCHEME_OPTIMIZE_LEVEL ?= 2
+SHEN_SCHEME_DEBUG_LEVEL ?= 0
+SHEN_SCHEME_INSPECTOR ?= false
+SHEN_SCHEME_SOURCE_INFO ?= false
+CURL ?= curl
+CURL_FLAGS ?= --fail --location --show-error --retry 3
 
-precompiled_dir = $(build_dir)$(S)shen-scheme-v0.26-src
+petite_bootfile = $(build_dir)/lib/shen-scheme/petite.boot
+scheme_bootfile = $(build_dir)/lib/shen-scheme/scheme.boot
+runtime_src = shen-scheme-runtime.ss
+runtime_obj = $(build_dir)/lib/shen-scheme/shen-scheme/runtime.so
+runtime_main_obj = $(build_dir)/obj/shen-scheme-main.so
+runtime_lib_obj = $(build_dir)/obj/shen-scheme/runtime.so
+runtime_config = o$(SHEN_SCHEME_OPTIMIZE_LEVEL)-d$(SHEN_SCHEME_DEBUG_LEVEL)-i$(SHEN_SCHEME_INSPECTOR)-s$(SHEN_SCHEME_SOURCE_INFO)
+runtime_stamp_prefix = $(build_dir)/obj/shen-scheme-runtime
+runtime_stamp = $(runtime_stamp_prefix)-$(runtime_config).stamp
+runtime_stamps = $(runtime_stamp_prefix)*.stamp
+runtime_artifacts = $(petite_bootfile) $(scheme_bootfile) $(runtime_obj)
+runtime_inputs = $(psboot) $(csboot) shen-scheme.scm $(runtime_src) src/* \
+	$(compiled_dir)/*.scm scripts/build-runtime.ss
+runtime_artifact_dirs = mkdir -p $(build_dir)/obj/shen-scheme $(build_dir)/lib/shen-scheme/shen-scheme
+runtime_artifact_build = "$(scmexe)" -q -b "$(psboot)" -b "$(csboot)" --script scripts/build-runtime.ss \
+	shen-scheme.scm "$(runtime_main_obj)" "$(runtime_src)" "$(runtime_lib_obj)" "$(runtime_obj)" \
+	"$(SHEN_SCHEME_OPTIMIZE_LEVEL)" "$(SHEN_SCHEME_DEBUG_LEVEL)" \
+	"$(SHEN_SCHEME_INSPECTOR)" "$(SHEN_SCHEME_SOURCE_INFO)"
 
 git_tag ?= $(shell git tag -l --contains HEAD 2> /dev/null)
 ifeq ("$(git_tag)","")
@@ -106,20 +138,32 @@ endif
 
 .DEFAULT: all
 .PHONY: all
-all: $(exe) $(bootfile)
+all: $(exe) $(runtime_artifacts)
 
-$(csdir):
+$(chez_source_stamp):
+	$(if $(strip $(chez_sha256)),,$(error no SHA-256 checksum is configured for $(chez_archive); set chez_sha256))
 	echo "Downloading and uncompressing Chez..."
 	mkdir -p $(chez_build_dir)
-	cd $(chez_build_dir); curl -LO 'https://github.com/cisco/ChezScheme/releases/download/v$(csversion)/csv$(csversion).tar.gz'; tar xzf csv$(csversion).tar.gz; rm csv$(csversion).tar.gz
+	cd $(chez_build_dir) && \
+		$(CURL) $(CURL_FLAGS) --output $(chez_archive) 'https://github.com/cisco/ChezScheme/releases/download/v$(csversion)/$(chez_archive)' && \
+		sh "$(CURDIR)/scripts/verify-sha256.sh" "$(chez_sha256)" "$(chez_archive)" && \
+		tar xzf $(chez_archive) && \
+		rm $(chez_archive)
+	test -d "$(csdir)"
+	touch "$@"
 
-$(cskernel): $(csdir)
+$(cskernel): $(chez_source_stamp)
 	echo "Building Chez..."
 ifeq ($(os), windows)
 	cmd.exe /C 'cd $(csdir) && build.bat ta6nt'
 else
 	cd $(csdir) && ./configure --threads --disable-curses --disable-iconv --disable-x11 && make
 endif
+
+# The Chez build creates its kernel and stock boot files together. Declaring
+# that relationship keeps fresh parallel builds from racing the boot copies.
+$(psboot) $(csboot): | $(cskernel)
+	test -f "$@"
 
 .PHONY: chez_kernel
 chez_kernel: $(cskernel)
@@ -143,104 +187,223 @@ else
 	$(CC) -c -o $@ $< -I$(csbootpath) -I./lib -Wall -Wextra -pedantic $(CFLAGS)
 endif
 
-$(bootfile): $(psboot) $(csboot) shen-scheme.scm src/* $(compiled_dir)/*.scm
+$(petite_bootfile): $(psboot)
 	mkdir -p $(build_dir)/lib/shen-scheme
-	echo '(make-boot-file "$(bootfile)" (list)  "$(psboot)" "$(csboot)" "shen-scheme.scm")' | "$(scmexe)" -q -b "$(psboot)" -b "$(csboot)"
+	cp "$<" "$@"
+
+$(scheme_bootfile): $(csboot)
+	mkdir -p $(build_dir)/lib/shen-scheme
+	cp "$<" "$@"
+
+# Keeping only the active configuration stamp makes changing any build option,
+# including changing it back, rebuild the runtime.
+$(runtime_stamp): $(runtime_inputs)
+	$(runtime_artifact_dirs)
+	$(RM) $(runtime_stamps)
+	$(runtime_artifact_build)
+	touch "$@"
+
+$(runtime_obj): | $(runtime_stamp)
+	@test -f "$@" || $(runtime_artifact_dirs)
+	@test -f "$@" || $(runtime_artifact_build)
 
 .PHONY: fetch-kernel
 fetch-kernel:
-	rm -f $(klsources_dir)/dict.kl $(klsources_dir)/init.kl \
-	      $(klsources_dir)/extension-features.kl \
-	      $(klsources_dir)/extension-expand-dynamic.kl \
-	      $(klsources_dir)/extension-programmable-pattern-matching.kl
-	rm -f $(klsources_dir)/stlib.kl
-	# (1) Community shen-sources 41.2: keep ONLY the command-line launcher
-	#     (extension-launcher.kl). stlib.kl is NO LONGER taken from here -- the
-	#     standard library is now generated from Tarver's Lib/StLib sources by
-	#     `make gen-stlib` (see below).
-	curl -LO 'https://github.com/Shen-Language/shen-sources/releases/download/shen-$(shenversion)/ShenOSKernel-$(shenversion).tar.gz'
-	tar xzf ShenOSKernel-$(shenversion).tar.gz
-	cp ShenOSKernel-$(shenversion)/klambda/extension-launcher.kl $(klsources_dir)/
-	# (2) Tarver S42.0 (2026-08-25): the kernel KLambda files (which
-	#     overwrite the community core/sys/...) AND the Lib/StLib .shen sources
-#     (left in S42-refresh/ for `make gen-stlib`). The zip's sha256 covers
-	#     both.
-	curl -LO '$(tarver_zip_url)'
-	( command -v sha256sum >/dev/null 2>&1 && echo '$(tarver_zip_sha256)  S42.zip' | sha256sum -c - ) || \
-	  echo '$(tarver_zip_sha256)  S42.zip' | shasum -a 256 -c -
-	rm -rf S42-refresh && mkdir S42-refresh
-	cd S42-refresh && unzip -q ../S42.zip
-	cp S42-refresh/S42/KLambda/*.kl $(klsources_dir)/
-
-# Generate kl/stlib.kl from Tarver's Lib/StLib .shen sources (see
-# scripts/gen-stlib-driver.shen, scripts/gen-stlib-lib.shen, KERNEL-PROVENANCE.md).
-# Requires a bootstrap Shen ($(SHEN), e.g. an existing shen-scheme). Build order
-# from scratch:
-#   make fetch-kernel && make SHEN=shen-scheme gen-stlib && make precompile && make
-# gen-stlib builds a throwaway kernel-only stage-1 boot (no standard library, so
-# registering Tarver's StLib macros can't collide with an existing one), then
-# drives the generator through that boot's REPL: it wraps eval-kl, loads
-# install.shen, and captures the compiled defuns + reconstructs the arity / macro
-# / systemf / type registrations. The generator is piped to the REPL (not `script`)
-# because the `(foreign scm.)` eval-kl wrap only compiles on the REPL path. The
-# subsequent `make precompile && make` rebuild the real image with kl/stlib.kl.
-.PHONY: gen-stlib
-gen-stlib:
-	$(SHEN) script scripts/do-build-stage1.shen > /dev/null
-	: > $(compiled_dir)/stlib.scm
-	$(MAKE) $(exe) $(bootfile)
-	./$(exe) < scripts/gen-stlib-driver.shen
-	# discard the throwaway stage-1 artifacts so the real build rebuilds cleanly
-	rm -f $(compiled_dir)/stlib.scm shen-scheme.scm $(bootfile) $(exe)
+	$(if $(strip $(kernel_sha256)),,$(error no SHA-256 checksum is configured for $(kernel_archive); set kernel_sha256))
+	$(CURL) $(CURL_FLAGS) --output $(kernel_archive) 'https://github.com/Shen-Language/shen-sources/releases/download/shen-$(shenversion)/$(kernel_archive)'
+	sh scripts/verify-sha256.sh "$(kernel_sha256)" "$(kernel_archive)"
+	tar xzf $(kernel_archive)
+	cp ShenOSKernel-$(shenversion)/klambda/*.kl $(klsources_dir)/
 
 .PHONY: fetch-prebuilt
 fetch-prebuilt:
+	$(if $(strip $(prebuilt_sha256)),,$(error no SHA-256 checksum is configured for $(prebuilt_archive); set prebuilt_sha256))
 	mkdir -p $(build_dir)
-	curl -LO 'https://github.com/tizoc/shen-scheme/releases/download/v0.26/shen-scheme-v0.26-$(os)-bin$(archiveext)'
-	$(uncompress) shen-scheme-v0.26-$(os)-bin$(archiveext) $(uncompressToFlag)$(build_dir)
+	$(CURL) $(CURL_FLAGS) --output $(prebuilt_archive) 'https://github.com/tizoc/shen-scheme/releases/download/v$(prebuilt_version)/$(prebuilt_archive)'
+	sh scripts/verify-sha256.sh "$(prebuilt_sha256)" "$(prebuilt_archive)"
+	$(uncompress) $(prebuilt_archive) $(uncompressToFlag)$(build_dir)
 
 .PHONY: precompile-with-prebuilt
 precompile-with-prebuilt:
-	$(build_dir)$(S)shen-scheme-v0.26-$(os)-bin$(S)bin$(S)shen-scheme$(binext) script scripts/do-build.shen > /dev/null
-
-$(precompiled_dir):
-	mkdir -p $(build_dir)
-	curl -LO 'https://github.com/tizoc/shen-scheme/releases/download/v0.26/shen-scheme-v0.26-src.tar.gz'
-	tar xzf shen-scheme-v0.26-src.tar.gz -C $(build_dir)
-	rm -f $(precompiled_dir)$(S)Makefile
-	cp Makefile $(precompiled_dir)$(S)Makefile
+	$(build_dir)$(S)shen-scheme-v$(prebuilt_version)-$(os)-bin$(S)bin$(S)shen-scheme$(binext) script scripts/do-build.shen > /dev/null
 
 .PHONY: precompile
 precompile:
 	$(SHEN) script scripts/do-build.shen > /dev/null
 
-.PHONY: build-precompiled
-build-precompiled: $(precompiled_dir) $(cskernel)
-	mkdir -p $(precompiled_dir)$(S)_build
-	cp -a $(chez_build_dir) $(precompiled_dir)$(S)$(chez_build_dir)
-	cd $(precompiled_dir); make csversion=$(csversion)
-
 .PHONY: test-shen
-test-shen: $(exe) $(bootfile)
+test-shen: $(exe) $(runtime_artifacts)
 	./$(exe) script scripts/run-shen-tests.shen
+	./$(exe) script tests/kernel-compatibility.shen
+
+.PHONY: test-ppm
+test-ppm: $(exe) $(runtime_artifacts)
+	./$(exe) script scripts/run-programmable-pattern-matching-tests.shen
+	SHEN_SCHEME_RUNTIME=petite ./$(exe) script scripts/run-programmable-pattern-matching-tests.shen
 
 .PHONY: test-compiler
-test-compiler: $(exe) $(bootfile)
+test-compiler: $(exe) $(runtime_artifacts)
 	./$(exe) script scripts/run-compiler-tests.shen
+	./$(exe) script scripts/run-build-library-tests.shen
+	"$(scmexe)" -q -b "$(psboot)" -b "$(csboot)" \
+		--script scripts/check-build-library.ss
+
+.PHONY: test-native
+test-native: $(exe) $(runtime_artifacts)
+	mkdir -p _build/native-tests
+	mkdir -p _build/native-tests/module-objects
+	mkdir -p _build/native-tests/module-regression-objects
+	mkdir -p _build/native-tests/nested-modules/native.test
+	mkdir -p _build/native-tests/nested-objects/native.test
+	./$(exe) script scripts/run-native-tests.shen
+	./$(exe) eval -q -e "(shen-scheme.delete-file-if-exists \"_build/native-tests/cli-direct.so.scm\")"
+	./$(exe) compile tests/native/simple.shen -o _build/native-tests/cli-direct.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-direct.so\")" -e "(if (= (native-test-map-inc (cons 4 (cons 5 []))) [5 6]) ok (error \"native CLI direct compile failed\"))" -e "(if (= (shen-scheme.file-exists? \"_build/native-tests/cli-direct.so.scm\") false) ok (error \"native CLI direct compile emitted scheme\"))"
+	./$(exe) compile tests/native/simple.shen --profile debug -o _build/native-tests/cli-profile-debug.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-profile-debug.so\")" -e "(if (= (native-test-map-inc (cons 4 (cons 5 []))) [5 6]) ok (error \"native CLI debug profile compile failed\"))"
+	./$(exe) compile tests/native/simple.shen -o _build/native-tests/cli-simple.so --emit-scheme _build/native-tests/cli-simple.scm
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-simple.so\")" -e "(if (= (native-test-map-inc (cons 4 (cons 5 []))) [5 6]) ok (error \"native CLI compile failed\"))"
+	./$(exe) compile tests/native/redefinition-sealed.shen -o _build/native-tests/cli-sealed.so --emit-scheme _build/native-tests/cli-sealed.scm --mode sealed
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-sealed.so\")" -e "(if (= (native-sealed-main 5) 6) ok (error \"native CLI sealed compile failed\"))"
+	./$(exe) compile tests/native/package-effects.shen -o _build/native-tests/cli-package-effects.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-package-effects.so\")" -e "(if (= (native-package-main 5) 12) ok (error \"native CLI package call failed\"))" -e "(if (= (native-package-state) [41 2]) ok (error \"native CLI package effect order failed\"))" -e "(if (package? native.test.pkg) ok (error \"native CLI package registration failed\"))" -e "(if (element? native-package-main (external native.test.pkg)) ok (error \"native CLI package external registration failed\"))" -e "(if (element? native.test.pkg.helper (internal native.test.pkg)) ok (error \"native CLI package internal registration failed\"))" -e "(if (not (= [] (assoc native.test.pkg.helper (value shen.*sigf*)))) ok (error \"native CLI package declaration failed\"))"
+	./$(exe) compile-module tests/native/package-effects.shenmod -o _build/native-tests/cli-package-effects-module.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-package-effects-module.so\")" -e "(if (= (value *native-package-events*) [41 2]) ok (error \"native CLI package module effects failed\"))" -e "(if (package? native.test.pkg) ok (error \"native CLI package module registration failed\"))" -e "(if (= unavailable (trap-error (native-package-main 5) (/. E unavailable))) ok (error \"native CLI package module metadata policy failed\"))"
+	./$(exe) compile-module _build/native-tests/module-decl.shenmod -o _build/native-tests/cli-module.so --emit-scheme _build/native-tests/cli-module.scm
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-module.so\")" -e "(if (= (native-module-main 5) 42) ok (error \"native CLI module declaration compile failed\"))"
+	./$(exe) compile-module _build/native-tests/module-declared.shenmod -o _build/native-tests/cli-module-declared.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-module-declared.so\")" -e "(if (= (native-module-declared 41) 42) ok (error \"native CLI module declared call failed\"))" -e "(if (not (= [] (assoc native-module-declared (value shen.*sigf*)))) ok (error \"native CLI module explicit declare metadata failed\"))"
+	./$(exe) compile-module _build/native-tests/module-runtime-only-declared.shenmod -o _build/native-tests/cli-module-runtime-only-declared.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-module-runtime-only-declared.so\")" -e "(if (= (native-module-runtime-only-declared 41) 42) ok (error \"native CLI module runtime-only declared call failed\"))" -e "(if (= [] (assoc native-module-runtime-only-declared (value shen.*sigf*))) ok (error \"native CLI module runtime-only declared metadata leaked\"))"
+	./$(exe) compile-module _build/native-tests/module-macro.shenmod -o _build/native-tests/cli-module-macro.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-module-macro.so\")" -e "(load \"_build/native-tests/module-macro-user.shen\")" -e "(if (= (native-module-macro-user 21) 42) ok (error \"native CLI module macro metadata failed\"))"
+	./$(exe) compile-module _build/native-tests/module-synonym.shenmod -o _build/native-tests/cli-module-synonym.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-module-synonym.so\")" -e "(tc +)" -e "(load \"_build/native-tests/module-synonym-user.shen\")" -e "(tc -)" -e "(if (= (native-module-synonym-user 41) 42) ok (error \"native CLI module synonym metadata failed\"))"
+	./$(exe) compile-module _build/native-tests/module-datatype.shenmod -o _build/native-tests/cli-module-datatype.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-module-datatype.so\")" -e "(tc +)" -e "(load \"_build/native-tests/module-datatype-user.shen\")" -e "(tc -)" -e "(if (= (native-module-datatype-user 99) 1) ok (error \"native CLI module datatype metadata failed\"))"
+	./$(exe) compile-module _build/native-tests/module-source-kl.shenmod -o _build/native-tests/cli-module-source-kl.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-module-source-kl.so\")" -e "(if (= (native-module-source-kl 41) 42) ok (error \"native CLI module source-kl call failed\"))" -e "(if (= defun (hd (ps native-module-source-kl))) ok (error \"native CLI module source-kl ps failed\"))" -e "(if (= native-module-source-kl (hd (tl (ps native-module-source-kl)))) ok (error \"native CLI module source-kl recorded wrong name\"))" -e "(if (element? native-module-source-kl (value shen.*userdefs*)) ok (error \"native CLI module source-kl userdefs failed\"))"
+	./$(exe) compile-module _build/native-tests/module-no-source-kl.shenmod -o _build/native-tests/cli-module-no-source-kl.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-module-no-source-kl.so\")" -e "(if (= (native-module-no-source-kl 41) 42) ok (error \"native CLI module no-source-kl call failed\"))" -e "(if (= missing (trap-error (ps native-module-no-source-kl) (/. E missing))) ok (error \"native CLI module no-source-kl leaked ps\"))" -e "(if (not (element? native-module-no-source-kl (value shen.*userdefs*))) ok (error \"native CLI module no-source-kl leaked userdefs\"))"
+	./$(exe) compile-module _build/native-tests/native.test.required.shenmod -o _build/native-tests/module-objects/native.test.required.so
+	./$(exe) compile-module _build/native-tests/native.test.requirer.shenmod --module-dir _build/native-tests -o _build/native-tests/module-objects/native.test.requirer.so
+	./$(exe) eval -q -e "(shen-scheme.load-module \"_build/native-tests/native.test.requirer.shenmod\" \"_build/native-tests\" \"_build/native-tests/module-objects\")" -e "(if (= (native-module-requirer 32) 42) ok (error \"native CLI module requires failed\"))"
+	./$(exe) load-module _build/native-tests/native.test.requirer.shenmod --object-dir _build/native-tests/module-objects --module-dir _build/native-tests
+	./$(exe) build-module-app _build/native-tests/native.test.app-main.shenmod --module-dir _build/native-tests -o _build/native-tests/cli-module-app-wpo.so --wpo
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-module-app-wpo.so\")" -e "(if (= (value *native-module-app-init-events*) [10 11]) ok (error \"native CLI module app initializer order failed\"))" -e "(if (= (native-module-app-main 32) 42) ok (error \"native CLI module app failed\"))" -e "(load \"_build/native-tests/module-app-base-updated.shen\")" -e "(if (= (native-module-app-base 1) 1001) ok (error \"native CLI module app dependency redefine failed\"))" -e "(if (= (native-module-app-main 32) 42) ok (error \"native CLI module app lost direct dependency binding\"))"
+	./$(exe) build-app tests/native/app-main.shen --module tests/native/app-lib.shen -o _build/native-tests/cli-app-wpo.so --wpo
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-app-wpo.so\")" -e "(if (= (value *native-app-init-events*) [1 12]) ok (error \"native CLI app initializer order failed\"))" -e "(if (= (native-app-main 31) 42) ok (error \"native CLI app build failed\"))" -e "(if (= (native-app-length [1 2 3]) 3) ok (error \"native CLI app runtime call failed\"))" -e "(if (= (native-app-absvector?) true) ok (error \"native CLI app absvector failed\"))" -e "(if (= (native-app-list-equal?) true) ok (error \"native CLI app generic equality failed\"))" -e "(if (= (native-app-sysfunc?) true) ok (error \"native CLI app static global failed\"))"
+	./$(exe) build-app tests/native/app-main.shen --module tests/native/app-lib.shen -o _build/native-tests/cli-app-profile-wpo.so --profile wpo
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-tests/cli-app-profile-wpo.so\")" -e "(if (= (value *native-app-init-events*) [1 12]) ok (error \"native CLI WPO profile app initializer order failed\"))" -e "(if (= (native-app-main 31) 42) ok (error \"native CLI WPO profile app build failed\"))" -e "(if (= (native-app-length [1 2 3]) 3) ok (error \"native CLI WPO profile app runtime call failed\"))" -e "(if (= (native-app-absvector?) true) ok (error \"native CLI WPO profile app absvector failed\"))" -e "(if (= (native-app-list-equal?) true) ok (error \"native CLI WPO profile app generic equality failed\"))" -e "(if (= (native-app-sysfunc?) true) ok (error \"native CLI WPO profile app static global failed\"))"
+	./$(exe) load-compiled _build/native-tests/cli-simple.so
+
+.PHONY: test-native-examples
+test-native-examples: $(exe) $(runtime_artifacts)
+	mkdir -p _build/native-examples/objects
+	./$(exe) compile examples/native/single-file.shen -o _build/native-examples/single-file.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-examples/single-file.so\")" -e "(if (= (answer 5) 26) ok (error \"native single-file example failed\"))"
+	./$(exe) compile examples/native/binding.shen -o _build/native-examples/compatible.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-examples/compatible.so\")" -e "(load \"examples/native/binding-update.shen\")" -e "(if (= (call-helper 1) 101) ok (error \"native compatible example failed\"))"
+	./$(exe) compile examples/native/binding.shen --mode sealed -o _build/native-examples/sealed.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-examples/sealed.so\")" -e "(load \"examples/native/binding-update.shen\")" -e "(if (= (call-helper 1) 2) ok (error \"native sealed example failed\"))"
+	./$(exe) compile examples/native/package-effects.shen -o _build/native-examples/package-effects.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-examples/package-effects.so\")" -e "(if (= (effect-events) [\"inside-before-definition\" \"after-definition\"]) ok (error \"native package effects example failed\"))"
+	./$(exe) compile-module examples/native/modules/native-example.core.shenmod -o _build/native-examples/objects/native-example.core.so
+	./$(exe) compile-module examples/native/modules/native-example.app.shenmod --module-dir examples/native/modules -o _build/native-examples/objects/native-example.app.so
+	./$(exe) eval -q -e "(shen-scheme.load-module \"examples/native/modules/native-example.app.shenmod\" \"examples/native/modules\" \"_build/native-examples/objects\")" -e "(if (= (run-example 32) 42) ok (error \"native module graph example failed\"))" -e "(if (= (module-events) [42]) ok (error \"native module initializer example failed\"))"
+	./$(exe) build-module-app examples/native/modules/native-example.app.shenmod --module-dir examples/native/modules -o _build/native-examples/app.so
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-examples/app.so\")" -e "(if (= (run-example 32) 42) ok (error \"native module app example failed\"))" -e "(if (= (module-events) [42]) ok (error \"native module app initializer example failed\"))"
+	./$(exe) build-module-app examples/native/modules/native-example.app.shenmod --module-dir examples/native/modules -o _build/native-examples/app-wpo.so --wpo
+	./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-examples/app-wpo.so\")" -e "(if (= (run-example 32) 42) ok (error \"native WPO module app example failed\"))"
+	SHEN_SCHEME_RUNTIME=petite ./$(exe) eval -q -e "(shen-scheme.load-compiled \"_build/native-examples/single-file.so\")" -e "(if (= (answer 5) 26) ok (error \"native full-to-Petite example failed\"))"
+
+.PHONY: bench-native
+bench-native: $(exe) $(runtime_artifacts)
+	mkdir -p _build/native-bench
+	./$(exe) script scripts/bench-native-sealed.shen
+
+.PHONY: bench-port
+bench-port: $(exe) $(runtime_artifacts)
+	mkdir -p _build/native-bench
+	./$(exe) script benchmarks/run-port-comparison.shen $(PORT_BENCH_ARGS)
+
+.PHONY: bench-port-smoke
+bench-port-smoke: $(exe) $(runtime_artifacts)
+	mkdir -p _build/native-bench
+	./$(exe) script benchmarks/run-port-comparison.shen --quick
+
+.PHONY: bench-realistic
+bench-realistic: $(exe) $(runtime_artifacts)
+	mkdir -p _build/native-bench
+	./$(exe) script benchmarks/run-realistic-comparison.shen $(REALISTIC_BENCH_ARGS)
+
+.PHONY: bench-realistic-smoke
+bench-realistic-smoke: $(exe) $(runtime_artifacts)
+	mkdir -p _build/native-bench
+	./$(exe) script benchmarks/run-realistic-comparison.shen --quick
+
+.PHONY: test-runtime-artifact-recovery
+test-runtime-artifact-recovery: $(runtime_artifacts)
+	$(RM) "$(runtime_obj)"
+	$(MAKE) $(runtime_obj)
+	test -f "$(runtime_obj)"
+	test -f "$(runtime_main_obj)"
+	test -f "$(runtime_lib_obj)"
+	"$(scmexe)" -q -b "$(psboot)" -b "$(csboot)" \
+		--script scripts/check-runtime-object.ss \
+		"$(abspath $(build_dir)/lib/shen-scheme)"
+
+.PHONY: test-clean-parallel-build
+test-clean-parallel-build: chez_kernel
+	$(MAKE) clean
+	$(MAKE) -j4 all
+	./$(exe) --version
 
 .PHONY: test
-test: test-shen test-compiler
+test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-repl-eof
+
+.PHONY: test-repl-eof
+test-repl-eof: $(exe) $(runtime_artifacts)
+	sh scripts/check-repl-eof.sh ./$(exe)
+
+.PHONY: test-namespaces
+test-namespaces: $(exe) $(runtime_artifacts)
+	mkdir -p _build/namespace-tests
+	./$(exe) script scripts/run-namespace-tests.shen
+	./$(exe) eval -q -e "(shen.x.namespace ns-test.cli (define answer -> 42))" -e "(if (= (ns-test.cli.answer) 42) ok (error \"namespace CLI eval failed\"))"
+	SHEN_SCHEME_RUNTIME=petite ./$(exe) eval -q -e "(shen.x.namespace ns-test.petite (define answer -> 42))" -e "(if (= (ns-test.petite.answer) 42) ok (error \"namespace Petite eval failed\"))"
+	SHEN_SCHEME_RUNTIME=petite ./$(exe) eval -q -e "(set ns-test-events [])" -e "(shen-scheme.load-compiled \"_build/namespace-tests/model.so\")" -e "(shen-scheme.load-compiled \"_build/namespace-tests/client.so\")" -e "(if (= (ns-test.client.answer 40) 42) ok (error \"namespace Petite native load failed\"))"
+
+.PHONY: test-external-runtime
+test-external-runtime: $(exe) $(runtime_artifacts)
+	mkdir -p _build/external-runtime-tests
+	cmp "$(petite_bootfile)" "$(psboot)"
+	cmp "$(scheme_bootfile)" "$(csboot)"
+	SHEN_SCHEME_HOME="$(abspath $(build_dir)/lib/shen-scheme)" ./$(exe) build-app tests/native/app-main.shen --module tests/native/app-lib.shen -o _build/external-runtime-tests/app-wpo.so --wpo
+	SHEN_SCHEME_HOME="$(abspath $(build_dir)/lib/shen-scheme)" ./$(exe) script scripts/run-external-runtime-tests.shen full _build/external-runtime-tests/app-wpo.so _build/external-runtime-tests/full-compiled.so
+	SHEN_SCHEME_HOME="$(abspath $(build_dir)/lib/shen-scheme)" SHEN_SCHEME_RUNTIME=petite ./$(exe) script scripts/run-external-runtime-tests.shen petite _build/external-runtime-tests/app-wpo.so _build/external-runtime-tests/petite-should-not-compile.so
+ifneq ($(os), windows)
+	mkdir -p "_build/external-runtime-tests/home:literal/shen-scheme"
+	cp "$(petite_bootfile)" "$(scheme_bootfile)" "_build/external-runtime-tests/home:literal/"
+	cp "$(runtime_obj)" "_build/external-runtime-tests/home:literal/shen-scheme/"
+	SHEN_SCHEME_HOME="$(abspath _build/external-runtime-tests/home:literal)" ./$(exe) --version
+endif
+
+.PHONY: test-petite-runtime
+test-petite-runtime: test-external-runtime
 
 .PHONY: run
-run: $(exe) $(bootfile)
+run: $(exe) $(runtime_artifacts)
 	./$(exe)
 
 .PHONY: install
-install: $(exe) $(bootfile)
+install: $(exe) $(runtime_artifacts)
 	mkdir -p $(DESTDIR)$(prefix)/bin
-	mkdir -p $(DESTDIR)$(home_path)
+	mkdir -p $(DESTDIR)$(home_path)/shen-scheme
 	install -m 0755 $(exe) $(DESTDIR)$(prefix)/bin
-	install -m 0644 $(bootfile) $(DESTDIR)$(home_path)/
+	install -m 0644 $(petite_bootfile) $(DESTDIR)$(home_path)/
+	install -m 0644 $(scheme_bootfile) $(DESTDIR)$(home_path)/
+	install -m 0644 $(runtime_obj) $(DESTDIR)$(home_path)/shen-scheme/
 
 .PHONY: source-release
 source-release:
@@ -248,20 +411,27 @@ source-release:
 	git archive --format=tar --prefix="$(archive_name)/" $(git_tag) | (cd _dist && tar xf -)
 	cp $(compiled_dir)/*.scm "_dist/$(archive_name)/compiled/"
 	cp shen-scheme.scm "_dist/$(archive_name)/shen-scheme.scm"
+	cp $(runtime_src) "_dist/$(archive_name)/$(runtime_src)"
 	rm -rf "_dist/$(archive_name)/".git*
 	rm "_dist/$(archive_name)/"*/.gitignore
 	cd _dist; tar cvzf "$(archive_name).tar.gz" "$(archive_name)/";	rm -rf "$(archive_name)/"
 	echo "Generated tarball for tag $(git_tag) as _dist/$(archive_name).tar.gz"
 
 .PHONY: binary-release
-binary-release: $(exe) $(bootfile)
+binary-release: $(exe) $(runtime_artifacts)
 	mkdir -p "_dist/shen-scheme-$(git_tag)-$(os)-bin"
 	mkdir -p "_dist/shen-scheme-$(git_tag)-$(os)-bin/bin"
-	mkdir -p "_dist/shen-scheme-$(git_tag)-$(os)-bin/lib/shen-scheme"
+	mkdir -p "_dist/shen-scheme-$(git_tag)-$(os)-bin/docs"
+	mkdir -p "_dist/shen-scheme-$(git_tag)-$(os)-bin/examples"
+	mkdir -p "_dist/shen-scheme-$(git_tag)-$(os)-bin/lib/shen-scheme/shen-scheme"
 	mkdir -p "_dist/shen-scheme-$(git_tag)-$(os)-bin/chez-legal"
 	cp $(exe) "_dist/shen-scheme-$(git_tag)-$(os)-bin/bin"
-	cp $(bootfile) "_dist/shen-scheme-$(git_tag)-$(os)-bin/lib/shen-scheme"
+	cp $(petite_bootfile) "_dist/shen-scheme-$(git_tag)-$(os)-bin/lib/shen-scheme"
+	cp $(scheme_bootfile) "_dist/shen-scheme-$(git_tag)-$(os)-bin/lib/shen-scheme"
+	cp $(runtime_obj) "_dist/shen-scheme-$(git_tag)-$(os)-bin/lib/shen-scheme/shen-scheme"
 	cp README.md "_dist/shen-scheme-$(git_tag)-$(os)-bin/README.txt"
+	cp docs/native-compilation.md "_dist/shen-scheme-$(git_tag)-$(os)-bin/docs"
+	cp -R examples/native "_dist/shen-scheme-$(git_tag)-$(os)-bin/examples"
 	cp LICENSE "_dist/shen-scheme-$(git_tag)-$(os)-bin/LICENSE.txt"
 	cp $(cslicense) "_dist/shen-scheme-$(git_tag)-$(os)-bin/chez-legal/LICENSE.txt"
 	cp $(cscopyright) "_dist/shen-scheme-$(git_tag)-$(os)-bin/chez-legal/NOTICE.txt"
@@ -269,4 +439,5 @@ binary-release: $(exe) $(bootfile)
 
 .PHONY: clean
 clean:
-	rm -f $(exe) $(bootfile) *.o *.obj
+	rm -f $(exe) $(petite_bootfile) $(scheme_bootfile) $(runtime_obj) \
+		$(runtime_main_obj) $(runtime_lib_obj) $(runtime_stamps) *.o *.obj

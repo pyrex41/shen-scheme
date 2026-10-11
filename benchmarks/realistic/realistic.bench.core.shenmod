@@ -1,0 +1,16 @@
+(shen.module
+  (version 1)
+  (name realistic.bench.core)
+  (sources tc- "core.shen")
+  (extension shen/scheme
+    (mode sealed)
+    (exports realistic-bench.member?
+             realistic-bench.add-unique
+             realistic-bench.union-vars
+             realistic-bench.remove-var
+             realistic-bench.list-length
+             realistic-bench.env-lookup
+             realistic-bench.initial-env
+             realistic-bench.make-program
+             realistic-bench.make-block
+             realistic-bench.make-expr)))

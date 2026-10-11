@@ -1,131 +1,93 @@
 # Shen kernel provenance
 
-shen-scheme builds from Mark Tarver's **S42.0 (2026-08-25)** release of the Shen
-kernel. This is a restructured kernel, distinct from the community
-`ShenOSKernel-41.2` previously used.
+This fork of shen-scheme builds from the community **ShenOSKernel 42.2**
+release of the Shen kernel, adopted **wholesale and byte-identical**. It is the
+same kernel that upstream [tizoc/shen-scheme v0.50](https://github.com/tizoc/shen-scheme/tree/v0.50)
+ships, and the fork's runtime is upstream v0.50 plus the fork-only changes
+listed below.
 
 ## Source of record
 
-- **Canonical source:** the S42 archive linked below (imported 2026-08-25).
-- **Primary download:** <https://www.shenlanguage.org/Download/S42.zip>
-  - `Last-Modified: 2026-08-25`
-  - `sha256 = 30abdc7e5a1e27b7a20109c1ed141e4712885e31f24d9710d16415fbbd4dfb23`
+- **Repository:** [Shen-Language/shen-sources](https://github.com/Shen-Language/shen-sources)
+- **Tag:** `shen-42.2`
+- **Commit:** `73507e069fe147aefb728d632c4ce40bc6a7b314`
+- **Release asset:** `ShenOSKernel-42.2.tar.gz`
+  (<https://github.com/Shen-Language/shen-sources/releases/download/shen-42.2/ShenOSKernel-42.2.tar.gz>)
+  - `sha256 = 1d02273003654d34ec020ae67cb214ecec410dee3350419ff807d82b652678d8`
+    (pinned as `kernel_sha256_42.2` in the `Makefile`)
+- **`(version)`:** `"42.2"` (set by the kernel's `init.kl`)
 
-`make fetch-kernel` downloads the primary zip, verifies the sha256, and copies
-the 15 kernel KLambda files into `kl/`.
-
-## What changed upstream (refresh vs community 41.2)
-
-The refresh ships **15** KLambda files:
+`make fetch-kernel` downloads the release asset, verifies the SHA-256 with
+`scripts/verify-sha256.sh` (the build refuses to extract on a mismatch), and
+copies every file from `ShenOSKernel-42.2/klambda/*.kl` into `kl/` unmodified:
 
 ```
-backend core declarations load macros prolog reader sequent
-sys t-star toplevel track types writer yacc
+core declarations dict init load macros prolog reader sequent stlib sys
+t-star toplevel track types writer yacc
+extension-expand-dynamic extension-features extension-launcher
+extension-namespaces extension-programmable-pattern-matching
+extension-type-annotations
 ```
 
-Relative to the community `ShenOSKernel-41.2`:
+The kernel files are not committed to this repository (`kl/` and `compiled/`
+are build outputs).
 
-- **Removed `dict.kl`.** The property store is no longer a dict. `put`/`get`/
-  `unput` are ordinary kernel defuns over a plain absvector (`*property-vector*`,
-  a hash-indexed vector of association lists) via `shen.change-pointer-value` /
-  `shen.remove-pointer` (both in `sys.kl`).
-- **Removed `init.kl`.** There is no longer a `shen.initialise` function.
-  Initialisation is now top-level forms in `declarations.kl` (property vector,
-  arity table via `shen.initialise-arity-table`, lambda table via
-  `shen.build-lambda-table`) and the ~160 `(declare ...)` forms in `types.kl`.
-- **Removed `stlib.kl`.** The standard library now ships as lazy `.shen`
-  sources under `Lib/StLib`, loaded at run time rather than compiled into the
-  kernel.
-- **Removed `compiler.kl` and the `extension-*.kl` files** (community additions).
-- **Added `backend.kl`** — an inert `cl.*` KLambda→Common Lisp backend, harmless
-  under Scheme but part of upstream's boot list (`Sources/make.shen`).
-- `hush` → `shen.hush`; `input+` → `shen.input-h+`/`shen.process-input+`;
-  `shen.initialise-lambda-forms` → `shen.initialise-lambda-tables`; no
-  `shen.set-lambda-form-entry`.
+## Lineage decision
 
-## Standard library: generated from Tarver's `Lib/StLib` sources
+Until this release the fork vendored **Mark Tarver's S41.2 / S42.0** kernel
+(`S42.zip` from shenlanguage.org, 2026-08-25), a structurally different
+lineage: no `init.kl`/`dict.kl`, a plain-absvector property store, and the
+standard library shipped as lazy `Lib/StLib` sources that the fork compiled
+into `stlib.kl` with its own generator.
 
-shen-scheme compiles the standard library into the boot image. Tarver's refresh
-ships it as lazy `.shen` sources under `Lib/StLib`, so `make gen-stlib`
-regenerates `kl/stlib.kl` from those sources; the community `ShenOSKernel-41.2`
-`stlib.kl` is **no longer used**.
+Kernels 42.1 and 42.2 are releases of the **community** `shen-sources` line.
+Per pyrex41/shen-scheme#8 (umbrella pyrex41/bifrost#26, pyrex41/yggdrasil#32),
+option **(a)** was chosen: adopt ShenOSKernel 42.2 wholesale, replacing the
+Tarver S42.0 lineage, so that this fork and upstream shen-scheme 0.50 run the
+same kernel byte for byte. This deliberately undoes the Tarver-lineage loader
+work. The following fork machinery was removed because it only applied to the
+Tarver kernel:
 
-Generation (`scripts/gen-stlib-driver.shen` + `scripts/gen-stlib-lib.shen`) runs
-in a throwaway **kernel-only stage-1** shen-scheme (`scripts/do-build-stage1.shen`,
-built with `_scm.*build-stage1*` dropping stlib) so that registering StLib's own
-macros can't collide with an existing standard library. It **intercepts `eval-kl`
-during a genuine `install.shen` load** — the approach ShenScript's generator uses:
+- the `S42.zip` fetch in `make fetch-kernel` and the mixed community/Tarver
+  file set;
+- `make gen-stlib` and its scripts (`scripts/gen-stlib-driver.shen`,
+  `scripts/gen-stlib-lib.shen`, `scripts/do-build-stage1.shen`); the community
+  `stlib.kl` is used as shipped;
+- the `scripts/build.shen` init-ordering and file-list changes (`backend.kl`,
+  no `dict`/`init`, no `extension-features`);
+- the `hash` bucket-0 guard and the removal of the
+  `(trap-error (get ...) ...)` -> `scm.get/or` optimisation. Both were needed
+  only because Tarver's kernel kept properties in a plain absvector. The
+  community kernel uses `dict`, which shen-scheme overrides with Chez
+  hashtables, so upstream's `hash` and `get` handling apply again.
 
-- `kl:eval-kl` is wrapped (via the REPL's `(foreign scm.)` escape — hence the
-  generator is piped to the REPL, not run with `script`) to record every compiled
-  `defun` as `install.shen` loads the sources through the kernel's own loader.
-  Because the real loader runs, macros, datatypes, and types register as genuine
-  side effects, and function bodies are fully macroexpanded.
-- After the load, the registrations the community `stlib.initialise-*` baked are
-  reconstructed from the post-load environment: **macros** from a `*macros*` diff
-  → `(shen.record-macro …)`; **arities** for every captured defun (externals *and*
-  the internal macro-expansion helpers, which also need an arity to be applied)
-  → `(update-lambda-table …)`; **systemf** for every stlib external; and `set` /
-  `declare` forms harvested from the sources (these do not pass through eval-kl).
-- `install.shen` is loaded **hushed** (`*hush*`), since shen-scheme's `pr` override
-  otherwise corrupts the output path for later eval (a cross-port `pr`/`*hush*`
-  hazard).
+## Fork-only changes on top of upstream v0.50
 
-This closes the reader-macro / datatype-typing regression: `(sqrt 2)`, `for`-loops,
-string sugar, and datatype typechecks (`(tc +) (rational? (r# 3 4))`) all work.
+- **Pattern-factorisation scaffolding removed** (`src/factorize-patterns.shen`,
+  `shen.push-factorised-branch` / `shen.eval-factorised-branch`,
+  `compile-factorised-branches`, the `shen.x.factorise-defun.*` build setup).
+  ShenOSKernel 42.2 does not ship `extension-factorise-defun.kl`, so this code
+  was unreachable. The kernel's own `(factorise +)` is unaffected.
+- **`*hush*` gates only standard output** (`pr` in `src/overrides.shen`): an
+  explicit `pr` to a file stream is written even under `*hush*`.
+- **REPL exits cleanly on stdin EOF** (`shen.my-read-byte` / `shen.repl` in
+  `src/overrides.shen`) instead of looping on `error: empty stream`. This is
+  scoped to REPL command input; a program's own `(read-byte (stinput))` still
+  returns `-1`.
+- Optional Nix development environment (`flake.nix`, `flake.lock`, `.envrc`).
 
-Two behavioural notes vs the community `stlib.kl`: (1) exported stdlib functions
-**are** marked as system functions (the `install.shen` `systemf` tail is
-reproduced), so a user `(define filter …)` is refused, matching upstream;
-non-exported functions are package-namespaced (`reduce` → `list.reduce`). (2) The
-`(datatype …)` `name#type` recognisers (`print#type`, `maths#type`, …) are
-**excluded** from the baked defuns (`g2-hashtype?`) so a persisted `print#type`
-can't shadow a user/kernel `print` datatype (the shen-julia hazard). Datatype
-types still check through the emitted `declare`s; the `(datatype …)` inference
-*rules* for the two stlib datatypes (`maths`, `print`) are not re-emitted, which
-matters only under `(tc +)` for those two datatypes.
+## 42.1 / 42.2 port-upgrade audit
 
-The command-line front end **`extension-launcher.kl`** is still retained from
-community `ShenOSKernel-41.2` (`shen.x.launcher.launch-shen`, driven by
-`shen-scheme.run-shen`); it is compatible with the refresh (its only `hush`
-reference is the `*hush*` variable, not the removed `hush` function).
-`extension-features.kl` is **dropped**: it calls `shen.set-lambda-form-entry`,
-which the refresh removed.
+From `doc/port-upgrades.md` in shen-sources:
 
-## Build adaptations (see `scripts/build.shen`, `src/compiler.shen`)
-
-- `*shen-files*`: dropped `dict`, `init`; added `backend`; kept `extension-launcher`.
-  `stlib` is compiled from the generated `kl/stlib.kl` (above), or dropped
-  entirely under `_scm.*build-stage1*` for the generator host.
-- Removed the seeded `(shen.initialise)` init call (the function no longer
-  exists; the kernel self-initialises via its top-level forms).
-- **Init ordering.** Non-defun top-level forms are collected into `*init-code*`
-  in file-compilation order and run at start-up in that order. The refresh has
-  cross dependencies, so the compile order is now: `overrides.kl`, then
-  `compiler.kl` (its `(set _scm.*compiling-function* ...)` must precede the
-  kernel's `types.kl` `declare`s, which drive the runtime compiler), then the
-  kernel (`declarations.kl` sets up the property vector / arity / lambda table
-  before `types.kl`), then `shen-scheme-extensions.kl` (its `update-lambda-table`
-  calls need that kernel state).
-- **`get` de-optimisation.** The `(trap-error (get ...) ...)` → `scm.get/or`
-  shortcut assumed dict-backed storage and is removed; `get` now goes through
-  the standard guarded path and calls the kernel `get` defun over the property
-  vector. (`tests/compiler-tests.shen` updated to match.)
-- **`hash` 0-guard.** `src/overrides.shen` overrides `hash` (replacing the
-  kernel defun). The refresh now buckets the property vector with
-  `(hash key (limit V))`, where bucket 0 is reserved (address 0 holds the
-  vector length). The kernel `hash` returns 1 instead of 0; the override now
-  does the same. Without this, a key hashing to 0 corrupts the store — the same
-  hazard other ports hit when overriding `hash`.
-
-## Remaining work
-
-- Re-emit the `(datatype …)` inference *rules* for the two stlib datatypes
-  (`maths`, `print`) so they type-check under `(tc +)` (their `name#type`
-  recognisers are deliberately not baked, to avoid shadowing). Every other stdlib
-  function, macro, and declared type — including the `rational`/`complex`/`numeral`
-  types — is reproduced.
-- The `shen.dict*` overrides in `src/overrides.shen` are now dead code (the
-  kernel no longer defines a dict type). They are kept, self-contained over
-  Scheme hashtables, so `(shen.dict ...)` still works as a shen-scheme
-  superset; drop them if strict upstream parity is preferred.
+- **42.0, `update-lambda-table` invalidation:** handled by upstream 0.47+.
+- **42.1, source-form handlers / `shen.macroexpand-h` / `shen.try-parse`:**
+  this fork overrides neither the reader nor `macroexpand`. Upstream 0.49+
+  handles source-form expansion in native compilation. The only reader-adjacent
+  override is the fork's `shen.my-read-byte`. It still lets the reader process
+  input that ends at EOF without a trailing newline: the first EOF after
+  pending input is passed through as `-1`, and the REPL exits only when nothing
+  is pending. For example, `printf '(+ 1 2)' | shen-scheme` prints `3` and
+  exits 0. It does not affect how expansions are consumed.
+- **42.2, `extension-namespaces.kl` regenerated:** used as shipped in the 42.2
+  tarball.

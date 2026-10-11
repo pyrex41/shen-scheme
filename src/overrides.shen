@@ -1,17 +1,8 @@
 \* Copyright (c) 2012-2021 Bruno Deferrari.  All rights reserved. *\
 \* BSD 3-Clause License: http://opensource.org/licenses/BSD-3-Clause *\
 
-\* This overrides the kernel `hash` outright (registered in overrides.shen, so
-   the kernel defun is dropped from the generated code). In Tarver's S41.2
-   refresh `put`/`get` bucket the property absvector with `(hash key (limit V))`,
-   and bucket 0 is reserved -- `limit` reads address 0 (the vector length). The
-   kernel `hash` guards this with `(if (= W 0) 1 W)`; the override MUST do the
-   same or a key that hashes to 0 collides with the length slot and corrupts the
-   store. (Because this single override is used at both populate and lookup time,
-   the hashing algorithm need not match the kernel's -- only the 0 guard must.) *\
 (define hash
-  Val Bound -> (let R ((foreign scm.fxmod) ((foreign scm.equal-hash) Val) Bound)
-                 (if ((foreign scm.fx=?) R 0) 1 R)))
+  Val Bound -> ((foreign scm.fxmod) ((foreign scm.equal-hash) Val) Bound))
 
 (define not
   Val -> ((foreign scm.not) Val))
@@ -24,8 +15,8 @@
 
 \* *hush* gates only the standard-output stream, NOT arbitrary file streams:
    an explicit `pr` to a file is user intent, not chatter to be silenced.
-   (Matches the cross-port agreement; the bare kernel `pr` suppresses every
-   sink under *hush*, which silenced file writes here.) *\
+   (Fork-specific; matches the cross-port agreement. The bare kernel `pr`
+   suppresses every sink under *hush*, which silenced file writes here.) *\
 (define pr
   String Sink -> (trap-error
                   (let Hushed ((foreign scm.and) (value *hush*) ((foreign scm.eq?) Sink (value *stoutput*)))
@@ -89,13 +80,15 @@
 
 \* hashtable-fold defined in prelude.scm *\
 (define shen.dict-fold
-  Dict F Init -> ((foreign scm.hashtable-fold) Dict F Init))
+  F Dict Init -> ((foreign scm.hashtable-fold) Dict F Init))
 
 (define shen.dict-keys
-  Dict -> ((foreign scm.hashtable-keys) Dict))
+  Dict -> ((foreign scm.vector->list)
+           ((foreign scm.hashtable-keys) Dict)))
 
 (define shen.dict-values
-  Dict -> ((foreign scm.hashtable-values) Dict))
+  Dict -> ((foreign scm.vector->list)
+           ((foreign scm.hashtable-values) Dict)))
 
 \* read-file-as-* defined in prelude.scm *\
 
@@ -120,31 +113,60 @@
 (define shen.char-stinput? S -> false)
 (define shen.char-stoutput? S -> false)
 
-\* REPL stdin-EOF handling.
+(define shen.read-unit-string
+  _ -> (error "character input streams are not supported~%"))
+
+\* Shen 42.0 expands source input+ calls to shen.input-h+, but its
+   lambda table still refers to input+ directly. *\
+
+(define input+
+  Type Stream -> (shen.input-h+ Type Stream))
+
+\* REPL stdin-EOF handling (fork-specific).
 
    Canonical Shen loops forever when the REPL's standard input is exhausted:
-   the kernel reader hits EOF, raises an error, shen.loop catches it with
-   trap-error, prints it, and recurses — re-reading EOF endlessly.
+   the reader hits EOF with an empty buffer, raises "error: empty stream",
+   shen.loop catches it, prints it, and recurses -- re-reading EOF endlessly.
 
    We detect EOF at the input layer (not by string-matching the downstream
-   error) and exit cleanly. _scm.*in-repl* is set true only for the REPL's
-   extent (shen.repl below), so the exit is scoped to REPL command input —
-   a program's own (read-byte (stinput)) still gets -1 at EOF. A deliberate,
-   documented improvement over canonical, matching the other ports. *\
+   error) and exit cleanly. _scm.*in-repl* is set only for the REPL's extent
+   (shen.repl below), so the exit is scoped to REPL command input on
+   *stinput*; a program's own (read-byte (stinput)) still gets -1 at EOF.
+
+   Since kernel 42.1 the reader must still process input that reaches EOF
+   without a trailing newline (e.g. `printf '(+ 1 2)' | shen-scheme`). So the
+   first EOF after pending, not-yet-terminated input is passed through as -1
+   (the reader then evaluates the buffered line), and only an EOF with no
+   pending input exits. _scm.*repl-pending* tracks whether any non-whitespace
+   byte was read since the last line terminator. *\
 (define _scm.repl-active?
   -> (trap-error (value _scm.*in-repl*) (/. E false)))
 
+(define _scm.repl-pending?
+  -> (trap-error (value _scm.*repl-pending*) (/. E false)))
+
+(define _scm.repl-track-byte
+  10 -> (set _scm.*repl-pending* false)
+  13 -> (set _scm.*repl-pending* false)
+  9 -> skip
+  32 -> skip
+  _ -> (set _scm.*repl-pending* true))
+
 (define shen.my-read-byte
   Stream -> (let B (read-byte Stream)
-              (if (= B -1)
-                  (if (and (_scm.repl-active?)
-                           ((foreign scm.eq?) Stream (value *stinput*)))
-                      ((foreign scm.exit) 0)
-                      -1)
+              (if (and (_scm.repl-active?)
+                       ((foreign scm.eq?) Stream (value *stinput*)))
+                  (if (= B -1)
+                      (if (_scm.repl-pending?)
+                          (do (set _scm.*repl-pending* false) -1)
+                          ((foreign scm.exit) 0))
+                      (do (_scm.repl-track-byte B) B))
                   B)))
 
 (define shen.repl
-  -> (do (set _scm.*in-repl* true) (do (shen.credits) (shen.loop))))
+  -> (do (set _scm.*in-repl* true)
+         (do (set _scm.*repl-pending* false)
+             (do (shen.credits) (shen.loop)))))
 
 \* To print location of errors *\
 

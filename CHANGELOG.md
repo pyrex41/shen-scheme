@@ -7,20 +7,128 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fork merged onto upstream shen-scheme 0.50. The kernel is now the community
+  ShenOSKernel 42.2 (Shen-Language/shen-sources tag `shen-42.2`, commit
+  `73507e0`), adopted wholesale and byte-identical, replacing Mark Tarver's
+  S42.0 lineage. `(version)` reports `42.2`. See `KERNEL-PROVENANCE.md`.
+- The REPL stdin-EOF exit now processes a final line that ends at EOF
+  without a trailing newline, as the 42.1+ reader requires, before exiting.
+
 ### Removed
 
+- Tarver-lineage build machinery: the `S42.zip` kernel fetch, `make
+  gen-stlib` and its scripts, the stage-1 build, and the absvector
+  property-store workarounds (`hash` bucket-0 guard, `get` trap-error
+  de-optimisation). The community `stlib.kl` is used as shipped.
 - Dead pattern-factorisation scaffolding (`src/factorize-patterns.shen`,
   `shen.push-factorised-branch` / `shen.eval-factorised-branch`,
   `compile-factorised-branches`, and the commented-out build references). It
-  targeted the `extension-factorise-defun.kl` extension, which upstream no
+  targeted the `extension-factorise-defun.kl` extension, which the kernel no
   longer ships. The kernel's own `(factorise +)` is unaffected and continues
   to work.
+
+### Fork-specific behaviour (retained)
+
+- `*hush*` gates only the standard-output stream, not explicit file sinks.
+- The REPL exits cleanly on stdin EOF instead of looping on
+  `error: empty stream`.
+- Optional Nix development environment (`flake.nix`).
+
+## [0.50] - 2026-10-01
+
+### Changed
+
+- Updated kernel to S42.2, allowing namespace `externals` and `with-externals`
+  to evaluate expressions that produce symbol lists.
+
+## [0.49] - 2026-10-01
+
+### Added
+
+- Shen's experimental namespaces extension, initialized at startup for dynamic
+  loading, CLI evaluation, and native file, module, and application compilation.
+  Native objects preserve namespace external and internal symbol metadata.
+
+### Changed
+
+- Updated kernel to S42.1.
+- Native source expansion now processes registered source-form containers before
+  ordinary macros, including containers produced by macros. Native compilation
+  restores the source-form handler registry on success and failure.
+
+## [0.48] - 2026-09-28
+
+### Fixed
+
+- Enforce Shen's left-to-right evaluation order for function calls, list
+  construction, and primitive operations, including intermediate curried
+  applications. Previously, Chez Scheme could evaluate operands out of order.
+
+## [0.47] - 2026-08-25
+
+### Changed
+
+- Updated kernel to S42.0.
+
+## [0.46.1] - 2026-08-19
+
+### Fixed
+
+- Dictionary folding now follows Shen's argument order and curried callback
+  convention; dictionary keys and values are returned as lists.
+- `(os)` now reports Chez Scheme's current machine type.
+- Native module source analysis now stages ordinary helper definitions at
+  source boundaries without running initializers, including imported helper
+  function values used by macros and programmable-pattern handlers.
+
+## [0.46] - 2026-08-13
+
+### Added
+
+- Shen's programmable-pattern-matching extension, initialized at startup,
+  including native AOT support for handlers used by later source files and
+  dependent modules.
+- Native AOT compilation for Shen source files and declared modules, including
+  top-level `defprolog` and `package` forms and arbitrary top-level Shen
+  expression effects.
+- Versioned portable `shen.module` declarations with namespaced Shen/Scheme
+  native-compilation settings.
+- Compatible and sealed compilation modes, build profiles, dependency
+  resolution, standalone app builds, and whole-program optimization support.
+- Port-style and realistic benchmark suites comparing dynamic loading,
+  compatible and sealed native compilation, and native app builds.
+- Runnable native-compilation examples and a guide covering source files,
+  packages, modules, applications, deployment, and embedding.
+
+### Changed
+
+- Updated kernel to S41.3.
+- Compiler arity registrations are generated from compiled definitions instead
+  of maintaining a parallel manual list.
+- Relative `.shenmod` source paths are resolved from the descriptor rather than
+  the process working directory. Portable module declarations require relative
+  source paths and verify the names of required declarations. Module loading
+  uses separate declaration and compiled-object roots.
+- Native module compilation honors per-source `tc+` and `tc-` transitions and
+  emits inline type metadata only for checked sources.
+- Shen/Scheme now starts from the stock Chez boot files and loads a combined
+  runtime and launcher object instead of generating a custom `shen.boot`.
+  `SHEN_SCHEME_RUNTIME=petite` selects a compiler-free runtime that can still
+  load precompiled native artifacts.
+
+### Removed
+
+- The generated `shen.boot` artifact and the `SHEN_SCHEME_BOOT` override.
+  `SHEN_SCHEME_HOME` now selects a complete, internally consistent runtime
+  artifact set.
 
 ## [0.45] - 2026-04-19
 
 ### Changed
 
-- Updated kernel to S42.0 (2026-08-25 archive).
+- Updated kernel to S41.2.
 
 ## [0.44] - 2026-03-08
 
@@ -315,7 +423,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dropped support for Gauche Scheme and Chibi Scheme.
 
-[Unreleased]: https://github.com/tizoc/shen-scheme/compare/v0.45...HEAD
+[Unreleased]: https://github.com/tizoc/shen-scheme/compare/v0.50...HEAD
+[0.50]: https://github.com/tizoc/shen-scheme/compare/v0.49...v0.50
+[0.49]: https://github.com/tizoc/shen-scheme/compare/v0.48...v0.49
+[0.48]: https://github.com/tizoc/shen-scheme/compare/v0.47...v0.48
+[0.47]: https://github.com/tizoc/shen-scheme/compare/v0.46.1...v0.47
+[0.46.1]: https://github.com/tizoc/shen-scheme/compare/v0.46...v0.46.1
+[0.46]: https://github.com/tizoc/shen-scheme/compare/v0.45...v0.46
 [0.45]: https://github.com/tizoc/shen-scheme/compare/v0.44...v0.45
 [0.44]: https://github.com/tizoc/shen-scheme/compare/v0.43...v0.44
 [0.43]: https://github.com/tizoc/shen-scheme/compare/v0.42...v0.43

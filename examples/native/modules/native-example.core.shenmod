@@ -1,0 +1,8 @@
+(shen.module
+  (version 1)
+  (name native-example.core)
+  (sources tc- "native-example.core.shen")
+  (extension shen/scheme
+    (mode sealed)
+    (exports add-ten)
+    (metadata runtime compiletime)))

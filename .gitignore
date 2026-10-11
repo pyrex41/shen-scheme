@@ -3,14 +3,13 @@
 /shen-sources
 /shen-chez.scm
 /shen-scheme.scm
+/shen-scheme-runtime.ss
 /shen-scheme
-/shen.boot
 *.o
 /_build
 /_dist
-# fetch-kernel download artifacts
+# fetch-kernel / fetch-prebuilt download artifacts
 /ShenOSKernel-*
-/ShenOSKernel-*.tar.gz
-/S41.2.zip
-/S41.2-refresh
+/csv*.tar.gz
 /shen-scheme-v*-bin.tar.gz
+/shen-scheme-v*-bin.zip
