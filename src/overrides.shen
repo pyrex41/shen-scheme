@@ -13,13 +13,18 @@
 (define integer?
   Val -> ((foreign scm.integer?) Val))
 
+\* *hush* gates only the standard-output stream, NOT arbitrary file streams:
+   an explicit `pr` to a file is user intent, not chatter to be silenced.
+   (Fork-specific; matches the cross-port agreement. The bare kernel `pr`
+   suppresses every sink under *hush*, which silenced file writes here.) *\
 (define pr
   String Sink -> (trap-error
-                  (let P (if ((foreign scm.textual-port?) Sink)
-                             ((foreign scm.or) (value *hush*) ((foreign scm.put-string) Sink String))
-                             ((foreign scm.or) (value *hush*) ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
+                  (let Hushed ((foreign scm.and) (value *hush*) ((foreign scm.eq?) Sink (value *stoutput*)))
+                       P (if ((foreign scm.textual-port?) Sink)
+                             ((foreign scm.or) Hushed ((foreign scm.put-string) Sink String))
+                             ((foreign scm.or) Hushed ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
                        F ((foreign scm.and)
-                            (not (value *hush*))
+                            (not Hushed)
                             ((foreign scm.should-flush?) Sink)
                             ((foreign scm.flush-output-port) Sink))
                     String)
@@ -116,6 +121,52 @@
 
 (define input+
   Type Stream -> (shen.input-h+ Type Stream))
+
+\* REPL stdin-EOF handling (fork-specific).
+
+   Canonical Shen loops forever when the REPL's standard input is exhausted:
+   the reader hits EOF with an empty buffer, raises "error: empty stream",
+   shen.loop catches it, prints it, and recurses -- re-reading EOF endlessly.
+
+   We detect EOF at the input layer (not by string-matching the downstream
+   error) and exit cleanly. _scm.*in-repl* is set only for the REPL's extent
+   (shen.repl below), so the exit is scoped to REPL command input on
+   *stinput*; a program's own (read-byte (stinput)) still gets -1 at EOF.
+
+   Since kernel 42.1 the reader must still process input that reaches EOF
+   without a trailing newline (e.g. `printf '(+ 1 2)' | shen-scheme`). So the
+   first EOF after pending, not-yet-terminated input is passed through as -1
+   (the reader then evaluates the buffered line), and only an EOF with no
+   pending input exits. _scm.*repl-pending* tracks whether any non-whitespace
+   byte was read since the last line terminator. *\
+(define _scm.repl-active?
+  -> (trap-error (value _scm.*in-repl*) (/. E false)))
+
+(define _scm.repl-pending?
+  -> (trap-error (value _scm.*repl-pending*) (/. E false)))
+
+(define _scm.repl-track-byte
+  10 -> (set _scm.*repl-pending* false)
+  13 -> (set _scm.*repl-pending* false)
+  9 -> skip
+  32 -> skip
+  _ -> (set _scm.*repl-pending* true))
+
+(define shen.my-read-byte
+  Stream -> (let B (read-byte Stream)
+              (if (and (_scm.repl-active?)
+                       ((foreign scm.eq?) Stream (value *stinput*)))
+                  (if (= B -1)
+                      (if (_scm.repl-pending?)
+                          (do (set _scm.*repl-pending* false) -1)
+                          ((foreign scm.exit) 0))
+                      (do (_scm.repl-track-byte B) B))
+                  B)))
+
+(define shen.repl
+  -> (do (set _scm.*in-repl* true)
+         (do (set _scm.*repl-pending* false)
+             (do (shen.credits) (shen.loop)))))
 
 \* To print location of errors *\
 
