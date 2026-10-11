@@ -360,7 +360,11 @@ test-clean-parallel-build: chez_kernel
 	./$(exe) --version
 
 .PHONY: test
-test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces
+test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-repl-eof
+
+.PHONY: test-repl-eof
+test-repl-eof: $(exe) $(runtime_artifacts)
+	sh scripts/check-repl-eof.sh ./$(exe)
 
 .PHONY: test-namespaces
 test-namespaces: $(exe) $(runtime_artifacts)
