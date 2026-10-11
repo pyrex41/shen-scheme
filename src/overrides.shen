@@ -1,17 +1,8 @@
 \* Copyright (c) 2012-2021 Bruno Deferrari.  All rights reserved. *\
 \* BSD 3-Clause License: http://opensource.org/licenses/BSD-3-Clause *\
 
-\* This overrides the kernel `hash` outright (registered in overrides.shen, so
-   the kernel defun is dropped from the generated code). In Tarver's S41.2
-   refresh `put`/`get` bucket the property absvector with `(hash key (limit V))`,
-   and bucket 0 is reserved -- `limit` reads address 0 (the vector length). The
-   kernel `hash` guards this with `(if (= W 0) 1 W)`; the override MUST do the
-   same or a key that hashes to 0 collides with the length slot and corrupts the
-   store. (Because this single override is used at both populate and lookup time,
-   the hashing algorithm need not match the kernel's -- only the 0 guard must.) *\
 (define hash
-  Val Bound -> (let R ((foreign scm.fxmod) ((foreign scm.equal-hash) Val) Bound)
-                 (if ((foreign scm.fx=?) R 0) 1 R)))
+  Val Bound -> ((foreign scm.fxmod) ((foreign scm.equal-hash) Val) Bound))
 
 (define not
   Val -> ((foreign scm.not) Val))
@@ -22,18 +13,13 @@
 (define integer?
   Val -> ((foreign scm.integer?) Val))
 
-\* *hush* gates only the standard-output stream, NOT arbitrary file streams:
-   an explicit `pr` to a file is user intent, not chatter to be silenced.
-   (Matches the cross-port agreement; the bare kernel `pr` suppresses every
-   sink under *hush*, which silenced file writes here.) *\
 (define pr
   String Sink -> (trap-error
-                  (let Hushed ((foreign scm.and) (value *hush*) ((foreign scm.eq?) Sink (value *stoutput*)))
-                       P (if ((foreign scm.textual-port?) Sink)
-                             ((foreign scm.or) Hushed ((foreign scm.put-string) Sink String))
-                             ((foreign scm.or) Hushed ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
+                  (let P (if ((foreign scm.textual-port?) Sink)
+                             ((foreign scm.or) (value *hush*) ((foreign scm.put-string) Sink String))
+                             ((foreign scm.or) (value *hush*) ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
                        F ((foreign scm.and)
-                            (not Hushed)
+                            (not (value *hush*))
                             ((foreign scm.should-flush?) Sink)
                             ((foreign scm.flush-output-port) Sink))
                     String)
@@ -89,13 +75,15 @@
 
 \* hashtable-fold defined in prelude.scm *\
 (define shen.dict-fold
-  Dict F Init -> ((foreign scm.hashtable-fold) Dict F Init))
+  F Dict Init -> ((foreign scm.hashtable-fold) Dict F Init))
 
 (define shen.dict-keys
-  Dict -> ((foreign scm.hashtable-keys) Dict))
+  Dict -> ((foreign scm.vector->list)
+           ((foreign scm.hashtable-keys) Dict)))
 
 (define shen.dict-values
-  Dict -> ((foreign scm.hashtable-values) Dict))
+  Dict -> ((foreign scm.vector->list)
+           ((foreign scm.hashtable-values) Dict)))
 
 \* read-file-as-* defined in prelude.scm *\
 
@@ -120,31 +108,27 @@
 (define shen.char-stinput? S -> false)
 (define shen.char-stoutput? S -> false)
 
-\* REPL stdin-EOF handling.
+(define shen.read-unit-string
+  _ -> (error "character input streams are not supported~%"))
 
-   Canonical Shen loops forever when the REPL's standard input is exhausted:
-   the kernel reader hits EOF, raises an error, shen.loop catches it with
-   trap-error, prints it, and recurses — re-reading EOF endlessly.
+\* Shen 42.0 expands source input+ calls to shen.input-h+, but its
+   lambda table still refers to input+ directly. *\
 
-   We detect EOF at the input layer (not by string-matching the downstream
-   error) and exit cleanly. _scm.*in-repl* is set true only for the REPL's
-   extent (shen.repl below), so the exit is scoped to REPL command input —
-   a program's own (read-byte (stinput)) still gets -1 at EOF. A deliberate,
-   documented improvement over canonical, matching the other ports. *\
-(define _scm.repl-active?
-  -> (trap-error (value _scm.*in-repl*) (/. E false)))
+(define input+
+  Type Stream -> (shen.input-h+ Type Stream))
 
-(define shen.my-read-byte
-  Stream -> (let B (read-byte Stream)
-              (if (= B -1)
-                  (if (and (_scm.repl-active?)
-                           ((foreign scm.eq?) Stream (value *stinput*)))
-                      ((foreign scm.exit) 0)
-                      -1)
-                  B)))
+\* factorise *\
 
-(define shen.repl
-  -> (do (set _scm.*in-repl* true) (do (shen.credits) (shen.loop))))
+\\ Branches are pushed into a stack instead of being evaluated
+\\ Then when the parent defun is converted into Scheme code, these
+\\ defuns are compiled and embedded into the parent definition.
+
+(define shen.push-factorised-branch
+  KL -> (let BS (trap-error (value shen.*branches-stack*) (/. E []))
+          (set shen.*branches-stack* [KL | BS])))
+
+(define shen.eval-factorised-branch
+  [defun BranchName Args Body] -> (shen.push-factorised-branch [defun BranchName Args Body]))
 
 \* To print location of errors *\
 

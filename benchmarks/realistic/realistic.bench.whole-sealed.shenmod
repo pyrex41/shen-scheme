@@ -1,0 +1,11 @@
+(shen.module
+  (version 1)
+  (name realistic.bench.whole-sealed)
+  (sources tc- "core.shen"
+           "analysis.shen"
+           "optimize.shen"
+           "compile.shen"
+           "vm.shen"
+           "main.shen")
+  (extension shen/scheme
+    (mode sealed)))

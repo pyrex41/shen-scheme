@@ -1,0 +1,11 @@
+(shen.module
+  (version 1)
+  (name port.bench.whole-compatible)
+  (sources tc- "../port-adapter.shen"
+           "data.shen"
+           "control-flow.shen"
+           "shen-compilation.shen"
+           "pattern-matching.shen"
+           "equality-check.shen")
+  (extension shen/scheme
+    (mode compatible)))
