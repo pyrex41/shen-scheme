@@ -110,8 +110,19 @@
             ZeroStamp (address-> Vector 0 N)
           Vector))
 
-(define shen.char-stinput? S -> false)
-(define shen.char-stoutput? S -> false)
+(define char-stream?
+  Stream -> ((foreign scm.textual-port?) Stream))
+
+(define read-unit-string
+  Stream -> (let C ((foreign scm.get-char) Stream)
+              (if ((foreign scm.eof-object?) C)
+                  ""
+                  ((foreign scm.string) C))))
+
+(define write-string
+  String Stream -> (do ((foreign scm.put-string) Stream String)
+                       ((foreign scm.flush-output-port) Stream)
+                       String))
 
 (define shen.read-unit-string
   _ -> (error "character input streams are not supported~%"))

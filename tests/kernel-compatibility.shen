@@ -7,13 +7,18 @@
 
 (assert-kernel-equal
   "kernel version"
-  "42.2"
+  "43.1"
   (version))
 
 (assert-kernel-equal
   "input+ macro expansion"
   [shen.input-h+ number [stinput]]
   (macroexpand [input+ number]))
+
+(assert-kernel-equal
+  "43.1 character stream metadata"
+  [1 1 2]
+  [(arity char-stream?) (arity read-unit-string) (arity write-string)])
 
 (assert-kernel-equal
   "input+ direct and higher-order calls"

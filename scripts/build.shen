@@ -65,9 +65,11 @@
        "init"
        "stlib"
        "extension-features"
+       "extension-expand-dynamic"
        "extension-launcher"
        "extension-programmable-pattern-matching"
        "extension-namespaces"
+       "extension-type-annotations"
        ])
 
 (set *shen-scheme-files*
@@ -407,9 +409,11 @@
 (include c#34;compiled/init.scmc#34;)
 (include c#34;compiled/stlib.scmc#34;)
 (include c#34;compiled/extension-features.scmc#34;)
+(include c#34;compiled/extension-expand-dynamic.scmc#34;)
 (include c#34;compiled/extension-launcher.scmc#34;)
 (include c#34;compiled/extension-programmable-pattern-matching.scmc#34;)
 (include c#34;compiled/extension-namespaces.scmc#34;)
+(include c#34;compiled/extension-type-annotations.scmc#34;)
 
 )
 "))

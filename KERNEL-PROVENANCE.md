@@ -1,28 +1,28 @@
 # Shen kernel provenance
 
-This fork of shen-scheme builds from the community **ShenOSKernel 42.2**
+This fork of shen-scheme builds from the community **ShenOSKernel 43.1**
 release of the Shen kernel, adopted **wholesale and byte-identical**. It is the
-same kernel that upstream [tizoc/shen-scheme v0.50](https://github.com/tizoc/shen-scheme/tree/v0.50)
-ships, and the fork's runtime is upstream v0.50 plus the fork-only changes
+same community kernel release used by current Shen ports, and the fork's
+runtime is the existing Scheme port plus the fork-only changes
 listed below.
 
 ## Source of record
 
 - **Repository:** [Shen-Language/shen-sources](https://github.com/Shen-Language/shen-sources)
-- **Tag:** `shen-42.2`
-- **Commit:** `73507e069fe147aefb728d632c4ce40bc6a7b314`
-- **Release asset:** `ShenOSKernel-42.2.tar.gz`
-  (<https://github.com/Shen-Language/shen-sources/releases/download/shen-42.2/ShenOSKernel-42.2.tar.gz>)
-  - `sha256 = 1d02273003654d34ec020ae67cb214ecec410dee3350419ff807d82b652678d8`
-    (pinned as `kernel_sha256_42.2` in the `Makefile`)
-- **`(version)`:** `"42.2"` (set by the kernel's `init.kl`)
+- **Tag:** `shen-43.1`
+- **Commit:** `715824a52b55e9c81a9501df8548ff3edd8411f5`
+- **Release asset:** `ShenOSKernel-43.1.tar.gz`
+  (<https://github.com/Shen-Language/shen-sources/releases/download/shen-43.1/ShenOSKernel-43.1.tar.gz>)
+  - `sha256 = 900eedef44f440af78f9395ed06e689ce1604546fc309f5bc7c8bc84cc651920`
+    (pinned as `kernel_sha256_43.1` in the `Makefile`)
+- **`(version)`:** `"43.1"` (set by the kernel's `init.kl`)
 
 `make fetch-kernel` downloads the release asset, verifies the SHA-256 with
 `scripts/verify-sha256.sh` (the build refuses to extract on a mismatch), and
-copies every file from `ShenOSKernel-42.2/klambda/*.kl` into `kl/` unmodified:
+copies every file from `ShenOSKernel-43.1/klambda/*.kl` into `kl/` unmodified:
 
 ```
-core declarations dict init load macros prolog reader sequent stlib sys
+compiler core declarations dict init load macros prolog reader sequent stlib sys
 t-star toplevel track types writer yacc
 extension-expand-dynamic extension-features extension-launcher
 extension-namespaces extension-programmable-pattern-matching
@@ -40,10 +40,10 @@ lineage: no `init.kl`/`dict.kl`, a plain-absvector property store, and the
 standard library shipped as lazy `Lib/StLib` sources that the fork compiled
 into `stlib.kl` with its own generator.
 
-Kernels 42.1 and 42.2 are releases of the **community** `shen-sources` line.
+Kernels 42.1, 42.2, and 43.1 are releases of the **community** `shen-sources` line.
 Per pyrex41/shen-scheme#8 (umbrella pyrex41/bifrost#26, pyrex41/yggdrasil#32),
-option **(a)** was chosen: adopt ShenOSKernel 42.2 wholesale, replacing the
-Tarver S42.0 lineage, so that this fork and upstream shen-scheme 0.50 run the
+the fork now adopts ShenOSKernel 43.1 wholesale, replacing the
+Tarver S42.0 lineage, so that this fork runs the
 same kernel byte for byte. This deliberately undoes the Tarver-lineage loader
 work. The following fork machinery was removed because it only applied to the
 Tarver kernel:
@@ -61,12 +61,12 @@ Tarver kernel:
   community kernel uses `dict`, which shen-scheme overrides with Chez
   hashtables, so upstream's `hash` and `get` handling apply again.
 
-## Fork-only changes on top of upstream v0.50
+## Fork-only changes on top of the existing Scheme port
 
 - **Pattern-factorisation scaffolding removed** (`src/factorize-patterns.shen`,
   `shen.push-factorised-branch` / `shen.eval-factorised-branch`,
   `compile-factorised-branches`, the `shen.x.factorise-defun.*` build setup).
-  ShenOSKernel 42.2 does not ship `extension-factorise-defun.kl`, so this code
+  ShenOSKernel 43.1 does not ship `extension-factorise-defun.kl`, so this code
   was unreachable. The kernel's own `(factorise +)` is unaffected.
 - **`*hush*` gates only standard output** (`pr` in `src/overrides.shen`): an
   explicit `pr` to a file stream is written even under `*hush*`.
@@ -76,7 +76,7 @@ Tarver kernel:
   returns `-1`.
 - Optional Nix development environment (`flake.nix`, `flake.lock`, `.envrc`).
 
-## 42.1 / 42.2 port-upgrade audit
+## 43.1 port-upgrade audit
 
 From `doc/port-upgrades.md` in shen-sources:
 
@@ -89,5 +89,8 @@ From `doc/port-upgrades.md` in shen-sources:
   pending input is passed through as `-1`, and the REPL exits only when nothing
   is pending. For example, `printf '(+ 1 2)' | shen-scheme` prints `3` and
   exits 0. It does not affect how expansions are consumed.
-- **42.2, `extension-namespaces.kl` regenerated:** used as shipped in the 42.2
-  tarball.
+- **43.1, new kernel extensions:** `extension-expand-dynamic.kl` and
+  `extension-type-annotations.kl` are compiled from the release tarball. The
+  port exposes public `char-stream?`, `read-unit-string`, and `write-string`
+  through Chez textual ports while retaining the fork's REPL EOF and `*hush*`
+  behavior.
