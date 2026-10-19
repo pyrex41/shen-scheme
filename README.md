@@ -142,6 +142,27 @@ Use `--help` for the full launcher and native compilation command list:
 shen-scheme --help
 ```
 
+Strings and bytes
+-----------------
+
+Shen strings are byte strings, as in shen-go and shen-c. The reader turns each
+byte of a source file into one character, so the UTF-8 literal `"λ"` is the two
+characters `(n->string 206)` and `(n->string 187)`, and `(string->n "λ")` is 206.
+
+- Output to a binary stream (stdout, stderr, files from `open`) writes each
+  character below 256 as that single byte, so text prints as the bytes it was
+  read from. `(pr (n->string 233))` writes the byte `0xE9`.
+- A character at or above 256 can only come from Scheme-side construction
+  (`n->string` of a larger number, `scm.` code, a textual port). It is written
+  as its UTF-8 encoding.
+- File names, command-line arguments and `read-file-as-string` are converted
+  between these byte strings and Chez's Unicode strings at the boundary. A file
+  named by the literal `"naïve.shen"` gets that UTF-8 name on disk.
+- Textual ports exist only when Scheme code makes them, and take strings as
+  they are.
+
+`make test-byte-strings` checks these rules, down to the bytes written to stdout.
+
 Namespaces
 ----------
 

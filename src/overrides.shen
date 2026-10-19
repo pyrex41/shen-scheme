@@ -13,7 +13,9 @@
 (define integer?
   Val -> ((foreign scm.integer?) Val))
 
-\* *hush* gates only the standard-output stream, NOT arbitrary file streams:
+\* Strings are byte strings (src/chez-prelude.scm): a binary sink gets one byte
+   per character below 256, the bytes the reader built the string from.
+   *hush* gates only the standard-output stream, NOT arbitrary file streams:
    an explicit `pr` to a file is user intent, not chatter to be silenced.
    (Fork-specific; matches the cross-port agreement. The bare kernel `pr`
    suppresses every sink under *hush*, which silenced file writes here.) *\
@@ -22,7 +24,7 @@
                   (let Hushed ((foreign scm.and) (value *hush*) ((foreign scm.eq?) Sink (value *stoutput*)))
                        P (if ((foreign scm.textual-port?) Sink)
                              ((foreign scm.or) Hushed ((foreign scm.put-string) Sink String))
-                             ((foreign scm.or) Hushed ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
+                             ((foreign scm.or) Hushed ((foreign scm.put-bytevector) Sink ((foreign scm.shen-string->bytevector) String))))
                        F ((foreign scm.and)
                             (not Hushed)
                             ((foreign scm.should-flush?) Sink)

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Non-ASCII text is no longer double-encoded. Strings are byte strings, as
+  the kernel's reader builds them and as shen-go and shen-c treat them. `pr`
+  wrote binary streams with `string->utf8`, so every byte above 127 came out
+  re-encoded (`"λ雪 café"`, 12 bytes, printed as 19). A character below 256 is
+  now written as that byte. One at or above 256, which only Scheme-side code
+  can make, is written as UTF-8.
+- File names, command-line arguments and `read-file-as-string` now convert
+  between byte strings and Chez's Unicode strings at the boundary. A literal
+  non-ASCII file name opens the file of that UTF-8 name.
+  `read-file-as-string` returns the same byte string the reader builds.
+- `make test-byte-strings` (part of `make test`) checks these rules, including
+  the exact bytes written to stdout.
+
 ### Changed
 
 - Fork merged onto upstream shen-scheme 0.50. The kernel is now the community

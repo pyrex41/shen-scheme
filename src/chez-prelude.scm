@@ -48,12 +48,76 @@
       (condition-who e)
       '*unknown-location*))
 
+;; Byte strings
+;;
+;; The kernel's strings are byte strings: its reader turns each byte of a
+;; source file into one character (`n->string` of the byte), as shen-go and
+;; shen-c do, so a UTF-8 "λ" is the two characters U+00CE U+00BB. Everything
+;; that crosses to the operating system keeps that view:
+;;
+;; - Output to a binary port writes a character below 256 as that one byte.
+;;   A character at or above 256 can only come from Scheme-side construction
+;;   (`n->string` of a large number, `scm.` code, a textual port); it is written
+;;   as its UTF-8 encoding, so Unicode text built in Scheme still prints.
+;; - File names, command-line arguments and `read-file-as-string` convert
+;;   between byte strings and Chez's Unicode strings at the boundary.
+;; - Textual ports (only ever made by Scheme code) take Scheme strings as is.
+
+(define (shen-byte-string? s)
+  (let ((n (string-length s)))
+    (let loop ((i 0))
+      (cond ((fx=? i n) #t)
+            ((fx<? (char->integer (string-ref s i)) 256) (loop (fx+ i 1)))
+            (else #f)))))
+
+(define (shen-string->bytevector s)
+  (if (shen-byte-string? s)
+      (let* ((n (string-length s))
+             (bv (make-bytevector n)))
+        (do ((i 0 (fx+ i 1)))
+            ((fx=? i n) bv)
+          (bytevector-u8-set! bv i (char->integer (string-ref s i)))))
+      (call-with-bytevector-output-port
+       (lambda (out)
+         (string-for-each
+          (lambda (c)
+            (let ((k (char->integer c)))
+              (if (fx<? k 256)
+                  (put-u8 out k)
+                  (put-bytevector out (string->utf8 (string c))))))
+          s)))))
+
+(define (bytevector->shen-string bv)
+  (let* ((n (bytevector-length bv))
+         (s (make-string n)))
+    (do ((i 0 (fx+ i 1)))
+        ((fx=? i n) s)
+      (string-set! s i (integer->char (bytevector-u8-ref bv i))))))
+
+(define (os-string->shen-string s)
+  (bytevector->shen-string (string->utf8 s)))
+
+(define strict-utf-8
+  (make-transcoder (utf-8-codec) (eol-style none) (error-handling-mode raise)))
+
+;; A byte string holding UTF-8 becomes the Unicode string Chez passes to the
+;; OS; anything else (a Scheme string, or bytes that are not UTF-8) is kept.
+(define (shen-string->os-string s)
+  (if (shen-byte-string? s)
+      (guard (e (#t s))
+        (bytevector->string (shen-string->bytevector s) strict-utf-8))
+      s))
+
 (define (full-path-for-file filename)
-  (if (path-absolute? filename)
-      filename
-      (string-append (current-directory)
-                     (string (directory-separator))
-                     filename)))
+  (let ((filename (shen-string->os-string filename)))
+    (if (path-absolute? filename)
+        filename
+        (string-append (current-directory)
+                       (string (directory-separator))
+                       filename))))
+
+(define (shen-scheme-file-exists? filename)
+  (file-exists? (shen-string->os-string filename)))
 
 (define (open-binary-input-file filename)
   (open-file-input-port filename))
@@ -82,12 +146,12 @@
         byte)))
 
 (define (read-file-as-string filename)
-  (call-with-input-file (full-path-for-file filename)
-    (lambda (in)
-      (let ((s (get-string-all in)))
-        (if (eof-object? s)
-            ""
-            s)))))
+  (let* ((in (open-file-input-port (full-path-for-file filename)))
+         (bytes (get-bytevector-all in)))
+    (close-input-port in)
+    (if (eof-object? bytes)
+        ""
+        (bytevector->shen-string bytes))))
 
 (define (read-file-as-bytelist filename)
   (let* ((in (open-file-input-port (full-path-for-file filename)))
