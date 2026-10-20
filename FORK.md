@@ -15,8 +15,9 @@ This fork is upstream [tizoc/shen-scheme](https://github.com/tizoc/shen-scheme)
 | `*hush*` gates only standard output | Under `eval -q`, v0.52's `pr` also silences explicit file writes, so `(write-to-file ...)` writes an empty file. | `make test-hush` |
 | Dead pattern-factorisation scaffolding removed | It targeted `extension-factorise-defun.kl`, which the kernel no longer ships. Nothing in kernel 43.1 reaches it. | builds and `make test` |
 | Optional Nix environment (`flake.nix`, `.envrc`) | Convenience for Bifrost; Nix is never required. | `nix develop` |
+| Byte strings written as bytes, and converted at the OS boundary (file names, arguments, `read-file-as-string`) | v0.52's fast `pr` UTF-8-encodes strings the kernel's reader built byte by byte, so text outside ASCII is double-encoded (`"λ雪 café"`, 11 bytes, prints as 18). The kernel's own `pr` writes byte by byte. | `make test-byte-strings` |
 
-`make test` runs the upstream suites plus `test-repl-eof` and `test-hush`.
+`make test` runs the upstream suites plus `test-repl-eof`, `test-hush` and `test-byte-strings`.
 
 ## History
 

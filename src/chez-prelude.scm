@@ -136,12 +136,68 @@
               'ok)))
         (show-last-error))))
 
+;; Shen strings are byte strings: the kernel's reader makes one character of
+;; each byte of a source file, so the UTF-8 literal "λ" is the two characters
+;; U+00CE U+00BB, and the kernel's `pr` writes each character back as a byte.
+;; A character at or above 256 can only be made on the Scheme side; it is
+;; written as UTF-8. File names cross to the OS as the UTF-8 their bytes hold.
+
+(define (shen-byte-string? s)
+  (let ((n (string-length s)))
+    (let loop ((i 0))
+      (cond ((fx=? i n) #t)
+            ((fx<? (char->integer (string-ref s i)) 256) (loop (fx+ i 1)))
+            (else #f)))))
+
+(define (shen-string->bytevector s)
+  (if (shen-byte-string? s)
+      (let* ((n (string-length s))
+             (bv (make-bytevector n)))
+        (do ((i 0 (fx+ i 1)))
+            ((fx=? i n) bv)
+          (bytevector-u8-set! bv i (char->integer (string-ref s i)))))
+      (call-with-bytevector-output-port
+       (lambda (out)
+         (string-for-each
+          (lambda (c)
+            (let ((k (char->integer c)))
+              (if (fx<? k 256)
+                  (put-u8 out k)
+                  (put-bytevector out (string->utf8 (string c))))))
+          s)))))
+
+(define (bytevector->shen-string bv)
+  (let* ((n (bytevector-length bv))
+         (s (make-string n)))
+    (do ((i 0 (fx+ i 1)))
+        ((fx=? i n) s)
+      (string-set! s i (integer->char (bytevector-u8-ref bv i))))))
+
+;; Command-line arguments arrive as Unicode strings; Shen sees their bytes.
+(define (os-string->shen-string s)
+  (bytevector->shen-string (string->utf8 s)))
+
+(define strict-utf-8
+  (make-transcoder (utf-8-codec) (eol-style none) (error-handling-mode raise)))
+
+;; A byte string holding UTF-8 becomes the Unicode string Chez gives the OS;
+;; a Scheme string, or bytes that are not UTF-8, are kept as they are.
+(define (shen-string->os-string s)
+  (if (shen-byte-string? s)
+      (guard (e (#t s))
+        (bytevector->string (shen-string->bytevector s) strict-utf-8))
+      s))
+
 (define (full-path-for-file filename)
-  (if (path-absolute? filename)
-      filename
-      (string-append (current-directory)
-                     (string (directory-separator))
-                     filename)))
+  (let ((filename (shen-string->os-string filename)))
+    (if (path-absolute? filename)
+        filename
+        (string-append (current-directory)
+                       (string (directory-separator))
+                       filename))))
+
+(define (shen-scheme-file-exists? filename)
+  (file-exists? (shen-string->os-string filename)))
 
 (define (open-binary-input-file filename)
   (open-file-input-port filename))
@@ -170,12 +226,12 @@
         byte)))
 
 (define (read-file-as-string filename)
-  (call-with-input-file (full-path-for-file filename)
-    (lambda (in)
-      (let ((s (get-string-all in)))
-        (if (eof-object? s)
-            ""
-            s)))))
+  (let* ((in (open-file-input-port (full-path-for-file filename)))
+         (bytes (get-bytevector-all in)))
+    (close-input-port in)
+    (if (eof-object? bytes)
+        ""
+        (bytevector->shen-string bytes))))
 
 (define (read-file-as-bytelist filename)
   (let* ((in (open-file-input-port (full-path-for-file filename)))

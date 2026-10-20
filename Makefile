@@ -362,7 +362,7 @@ test-clean-parallel-build: chez_kernel
 	./$(exe) --version
 
 .PHONY: test
-test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-repl-eof test-hush
+test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-repl-eof test-hush test-byte-strings
 
 .PHONY: test-hush
 test-hush: $(exe) $(runtime_artifacts)
@@ -374,6 +374,11 @@ test-hush: $(exe) $(runtime_artifacts)
 .PHONY: test-repl-eof
 test-repl-eof: $(exe) $(runtime_artifacts)
 	sh scripts/check-repl-eof.sh ./$(exe)
+
+.PHONY: test-byte-strings
+test-byte-strings: $(exe) $(runtime_artifacts)
+	./$(exe) script tests/byte-strings.shen
+	sh scripts/check-byte-strings.sh ./$(exe)
 
 .PHONY: test-namespaces
 test-namespaces: $(exe) $(runtime_artifacts)
