@@ -362,7 +362,14 @@ test-clean-parallel-build: chez_kernel
 	./$(exe) --version
 
 .PHONY: test
-test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-repl-eof
+test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-repl-eof test-hush
+
+.PHONY: test-hush
+test-hush: $(exe) $(runtime_artifacts)
+	mkdir -p _build
+	rm -f _build/hush-file.txt
+	test -z "$$(./$(exe) eval -q -e '(write-to-file "_build/hush-file.txt" "written")')"
+	test "$$(cat _build/hush-file.txt)" = written
 
 .PHONY: test-repl-eof
 test-repl-eof: $(exe) $(runtime_artifacts)

@@ -13,13 +13,18 @@
 (define integer?
   Val -> ((foreign scm.integer?) Val))
 
+\* *hush* gates only the standard-output stream, not explicit file sinks: a
+   pr to a file is the program's output, not chatter to silence. (Fork-
+   specific. The kernel's pr suppresses every sink under *hush*, so `eval -q`
+   wrote empty files.) *\
 (define pr
   String Sink -> (trap-error
-                  (let P (if ((foreign scm.textual-port?) Sink)
-                             ((foreign scm.or) (value *hush*) ((foreign scm.put-string) Sink String))
-                             ((foreign scm.or) (value *hush*) ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
+                  (let Hushed ((foreign scm.and) (value *hush*) ((foreign scm.eq?) Sink (value *stoutput*)))
+                       P (if ((foreign scm.textual-port?) Sink)
+                             ((foreign scm.or) Hushed ((foreign scm.put-string) Sink String))
+                             ((foreign scm.or) Hushed ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
                        F ((foreign scm.and)
-                            (not (value *hush*))
+                            (not Hushed)
                             ((foreign scm.should-flush?) Sink)
                             ((foreign scm.flush-output-port) Sink))
                     String)
