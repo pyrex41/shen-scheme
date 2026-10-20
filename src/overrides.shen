@@ -125,19 +125,6 @@
 (define input+
   Type Stream -> (shen.input-h+ Type Stream))
 
-\* factorise *\
-
-\\ Branches are pushed into a stack instead of being evaluated
-\\ Then when the parent defun is converted into Scheme code, these
-\\ defuns are compiled and embedded into the parent definition.
-
-(define shen.push-factorised-branch
-  KL -> (let BS (trap-error (value shen.*branches-stack*) (/. E []))
-          (set shen.*branches-stack* [KL | BS])))
-
-(define shen.eval-factorised-branch
-  [defun BranchName Args Body] -> (shen.push-factorised-branch [defun BranchName Args Body]))
-
 \* REPL stdin-EOF handling (fork-specific).
 
    Canonical Shen loops forever when the REPL's standard input is exhausted:
