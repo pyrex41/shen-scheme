@@ -36,11 +36,19 @@
   (call-with-string-output-port
     (lambda (out) (kl:pr "éλ" out))))
 
+;; Fork-specific (FORK.md): *hush* silences only *stoutput*; pr to any other
+;; sink is the program's output and is still written.
 (let ((hush (kl:value '*hush*)))
   (dynamic-wind
     (lambda () (kl:set '*hush* #t))
     (lambda ()
-      (check "hushed pr writes no bytes" #vu8() (printed-bytes byte-string)))
+      (check "hushed pr writes no bytes to *stoutput*" #vu8()
+        (call-with-bytevector-output-port
+          (lambda (out)
+            (parameterize ([kl:global/*stoutput* out])
+              (kl:pr byte-string out)))))
+      (check "hushed pr still writes every byte to another sink"
+        (u8-list->bytevector byte-values) (printed-bytes byte-string)))
     (lambda () (kl:set '*hush* hush))))
 
 ;; Include a UTF-8 BOM, invalid UTF-8 bytes, CRLF and a trailing CR. None of
