@@ -362,11 +362,15 @@ test-clean-parallel-build: chez_kernel
 	./$(exe) --version
 
 .PHONY: test
-test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-byte-strings
+test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-byte-strings test-repl-eof
 
 .PHONY: test-byte-strings
 test-byte-strings: $(exe) $(runtime_artifacts)
 	./$(exe) eval -q -e '(eval-kl [scm. "(load c#34;tests/byte-strings.ssc#34;)"])'
+
+.PHONY: test-repl-eof
+test-repl-eof: $(exe) $(runtime_artifacts)
+	sh scripts/check-repl-eof.sh ./$(exe)
 
 .PHONY: test-namespaces
 test-namespaces: $(exe) $(runtime_artifacts)
