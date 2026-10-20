@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fork-specific (pyrex41/shen-scheme; see FORK.md)
+
+- The REPL exits cleanly on stdin EOF instead of looping on
+  `error: empty stream`, and still evaluates a final line without a trailing
+  newline (`make test-repl-eof`).
+- `*hush*` gates only the standard-output stream, not explicit file sinks
+  (`make test-hush`).
+- Dead pattern-factorisation scaffolding removed.
+- Optional Nix development environment (`flake.nix`).
+
 ## [0.52] - 2026-10-16
 
 ### Changed
