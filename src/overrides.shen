@@ -16,13 +16,15 @@
 \* *hush* gates only the standard-output stream, not explicit file sinks: a
    pr to a file is the program's output, not chatter to silence. (Fork-
    specific. The kernel's pr suppresses every sink under *hush*, so `eval -q`
-   wrote empty files.) *\
+   wrote empty files.) Like the kernel's pr, a binary sink gets one byte per
+   character of the byte string (src/chez-prelude.scm), written as one
+   bytevector. *\
 (define pr
   String Sink -> (trap-error
                   (let Hushed ((foreign scm.and) (value *hush*) ((foreign scm.eq?) Sink (value *stoutput*)))
                        P (if ((foreign scm.textual-port?) Sink)
                              ((foreign scm.or) Hushed ((foreign scm.put-string) Sink String))
-                             ((foreign scm.or) Hushed ((foreign scm.put-bytevector) Sink ((foreign scm.string->utf8) String))))
+                             ((foreign scm.or) Hushed ((foreign scm.put-bytevector) Sink ((foreign scm.shen-string->bytevector) String))))
                        F ((foreign scm.and)
                             (not Hushed)
                             ((foreign scm.should-flush?) Sink)
