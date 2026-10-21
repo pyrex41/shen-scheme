@@ -55,7 +55,7 @@ ifeq ($(os), linux)
 	linkerflags = -lm -ldl -lpthread -luuid
 endif
 
-shenversion ?= 43.1.1
+shenversion ?= 43.1.2
 csversion ?= 10.3.0
 prebuilt_version ?= 0.26
 
@@ -67,9 +67,12 @@ kernel_sha256_42.1 = 87e0d5e795cd074bfec3975da2aaada22a78e13f44cf53f424cdaf20573
 kernel_sha256_42.2 = 1d02273003654d34ec020ae67cb214ecec410dee3350419ff807d82b652678d8
 kernel_sha256_43.1 = 900eedef44f440af78f9395ed06e689ce1604546fc309f5bc7c8bc84cc651920
 # Fork-specific: 43.1.1 is ShenOSKernel 43.1 plus Shen-Language/shen-sources#117,
-# released on pyrex41/shen-sources (tag shen-43.1.1), not by Shen-Language.
+# and 43.1.2 adds the empty-list guard from review on #117. Both are released on
+# pyrex41/shen-sources (tags shen-43.1.1, shen-43.1.2), not by Shen-Language.
 kernel_sha256_43.1.1 = 86448e80f4a99421d05135d0db46dc5fc4cb207788bde87c50b47b35e70ec4d3
 kernel_repo_43.1.1 = pyrex41/shen-sources
+kernel_sha256_43.1.2 = c7ec855c701d1c7c47b4c6e2e2d9c7a0df5b7fa11c10e361167de604742c2fd7
+kernel_repo_43.1.2 = pyrex41/shen-sources
 prebuilt_sha256_0.26_linux = 2859384f3b16cd6cf596084cfff7e2d9d5b31a11df3d1f7c9e1f1746ed6ef798
 prebuilt_sha256_0.26_macOS = a9c321a286daf354dda8ab51eb2b191cbdc339c2087e4490488c88ce462f5dc6
 prebuilt_sha256_0.26_windows = 7c5ab365cdd42aa02bfba90f857fddc7b431672fe01928f14f2b0f1156042549
