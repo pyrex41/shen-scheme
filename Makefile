@@ -66,6 +66,10 @@ kernel_sha256_42.0 = 32e86f58a1f6bbc111712a777a04a592c474e5cd05c2db7be0125f25ba8
 kernel_sha256_42.1 = 87e0d5e795cd074bfec3975da2aaada22a78e13f44cf53f424cdaf205730c439
 kernel_sha256_42.2 = 1d02273003654d34ec020ae67cb214ecec410dee3350419ff807d82b652678d8
 kernel_sha256_43.1 = 900eedef44f440af78f9395ed06e689ce1604546fc309f5bc7c8bc84cc651920
+# Fork-specific kernel patches (patches/kernel-<version>/*.patch, applied by
+# fetch-kernel) and the SHA-256 of each file they produce. See FORK.md.
+kernel_patched_files_43.1 = t-star.kl
+kernel_patched_sha256_43.1_t-star.kl = a0cedbb0334eb7f66fe5e2296056ea66d1e2f42c9efe176f6d1be2f0b28bf2ec
 prebuilt_sha256_0.26_linux = 2859384f3b16cd6cf596084cfff7e2d9d5b31a11df3d1f7c9e1f1746ed6ef798
 prebuilt_sha256_0.26_macOS = a9c321a286daf354dda8ab51eb2b191cbdc339c2087e4490488c88ce462f5dc6
 prebuilt_sha256_0.26_windows = 7c5ab365cdd42aa02bfba90f857fddc7b431672fe01928f14f2b0f1156042549
@@ -215,6 +219,11 @@ fetch-kernel:
 	sh scripts/verify-sha256.sh "$(kernel_sha256)" "$(kernel_archive)"
 	tar xzf $(kernel_archive)
 	cp ShenOSKernel-$(shenversion)/klambda/*.kl $(klsources_dir)/
+	for p in patches/kernel-$(shenversion)/*.patch; do \
+	  [ -f "$$p" ] || continue; \
+	  patch -d $(klsources_dir) -p1 --forward --batch < "$$p" || exit 1; \
+	done
+	$(foreach f,$(kernel_patched_files_$(shenversion)),sh scripts/verify-sha256.sh "$(kernel_patched_sha256_$(shenversion)_$(f))" "$(klsources_dir)/$(f)" &&) true
 
 .PHONY: fetch-prebuilt
 fetch-prebuilt:
