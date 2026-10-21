@@ -136,12 +136,42 @@
               'ok)))
         (show-last-error))))
 
+;; File names and command-line arguments cross to the OS, which speaks
+;; Unicode strings, while Shen holds them as byte strings (one character per
+;; byte, as the reader builds them). A byte string holding UTF-8 is decoded
+;; on the way out; a Scheme string, or bytes that are not UTF-8, are kept.
+;; (Fork-specific; upstream's byte-string fix covers pr and file contents.)
+
+(define (shen-byte-string? s)
+  (let ((n (string-length s)))
+    (let loop ((i 0))
+      (cond ((fx=? i n) #t)
+            ((fx<? (char->integer (string-ref s i)) 256) (loop (fx+ i 1)))
+            (else #f)))))
+
+(define strict-utf-8
+  (make-transcoder (utf-8-codec) (eol-style none) (error-handling-mode raise)))
+
+(define (shen-string->os-string s)
+  (if (shen-byte-string? s)
+      (guard (e (#t s))
+        (bytevector->string (shen-string->bytevector s) strict-utf-8))
+      s))
+
+;; Command-line arguments arrive as Unicode strings; Shen sees their bytes.
+(define (os-string->shen-string s)
+  (bytevector->string (string->utf8 s) shen-byte-transcoder))
+
 (define (full-path-for-file filename)
-  (if (path-absolute? filename)
-      filename
-      (string-append (current-directory)
-                     (string (directory-separator))
-                     filename)))
+  (let ((filename (shen-string->os-string filename)))
+    (if (path-absolute? filename)
+        filename
+        (string-append (current-directory)
+                       (string (directory-separator))
+                       filename))))
+
+(define (shen-scheme-file-exists? filename)
+  (file-exists? (shen-string->os-string filename)))
 
 (define (open-binary-input-file filename)
   (open-file-input-port filename))

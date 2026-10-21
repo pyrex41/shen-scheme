@@ -362,11 +362,16 @@ test-clean-parallel-build: chez_kernel
 	./$(exe) --version
 
 .PHONY: test
-test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-byte-strings test-repl-eof test-hush
+test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-byte-strings test-byte-string-boundaries test-repl-eof test-hush
 
 .PHONY: test-byte-strings
 test-byte-strings: $(exe) $(runtime_artifacts)
 	./$(exe) eval -q -e '(eval-kl [scm. "(load c#34;tests/byte-strings.ssc#34;)"])'
+
+.PHONY: test-byte-string-boundaries
+test-byte-string-boundaries: $(exe) $(runtime_artifacts)
+	./$(exe) script tests/byte-string-boundaries.shen
+	sh scripts/check-byte-string-boundaries.sh ./$(exe)
 
 .PHONY: test-hush
 test-hush: $(exe) $(runtime_artifacts)
