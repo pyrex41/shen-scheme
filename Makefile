@@ -55,7 +55,7 @@ ifeq ($(os), linux)
 	linkerflags = -lm -ldl -lpthread -luuid
 endif
 
-shenversion ?= 43.1
+shenversion ?= 43.1.1
 csversion ?= 10.3.0
 prebuilt_version ?= 0.26
 
@@ -66,16 +66,17 @@ kernel_sha256_42.0 = 32e86f58a1f6bbc111712a777a04a592c474e5cd05c2db7be0125f25ba8
 kernel_sha256_42.1 = 87e0d5e795cd074bfec3975da2aaada22a78e13f44cf53f424cdaf205730c439
 kernel_sha256_42.2 = 1d02273003654d34ec020ae67cb214ecec410dee3350419ff807d82b652678d8
 kernel_sha256_43.1 = 900eedef44f440af78f9395ed06e689ce1604546fc309f5bc7c8bc84cc651920
-# Fork-specific kernel patches (patches/kernel-<version>/*.patch, applied by
-# fetch-kernel) and the SHA-256 of each file they produce. See FORK.md.
-kernel_patched_files_43.1 = t-star.kl
-kernel_patched_sha256_43.1_t-star.kl = a0cedbb0334eb7f66fe5e2296056ea66d1e2f42c9efe176f6d1be2f0b28bf2ec
+# Fork-specific: 43.1.1 is ShenOSKernel 43.1 plus Shen-Language/shen-sources#117,
+# released on pyrex41/shen-sources (tag shen-43.1.1), not by Shen-Language.
+kernel_sha256_43.1.1 = 86448e80f4a99421d05135d0db46dc5fc4cb207788bde87c50b47b35e70ec4d3
+kernel_repo_43.1.1 = pyrex41/shen-sources
 prebuilt_sha256_0.26_linux = 2859384f3b16cd6cf596084cfff7e2d9d5b31a11df3d1f7c9e1f1746ed6ef798
 prebuilt_sha256_0.26_macOS = a9c321a286daf354dda8ab51eb2b191cbdc339c2087e4490488c88ce462f5dc6
 prebuilt_sha256_0.26_windows = 7c5ab365cdd42aa02bfba90f857fddc7b431672fe01928f14f2b0f1156042549
 
 chez_sha256 ?= $(chez_sha256_$(csversion))
 kernel_sha256 ?= $(kernel_sha256_$(shenversion))
+kernel_repo ?= $(or $(kernel_repo_$(shenversion)),Shen-Language/shen-sources)
 prebuilt_sha256 ?= $(prebuilt_sha256_$(prebuilt_version)_$(os))
 
 chez_archive = csv$(csversion).tar.gz
@@ -215,15 +216,10 @@ $(runtime_obj): | $(runtime_stamp)
 .PHONY: fetch-kernel
 fetch-kernel:
 	$(if $(strip $(kernel_sha256)),,$(error no SHA-256 checksum is configured for $(kernel_archive); set kernel_sha256))
-	$(CURL) $(CURL_FLAGS) --output $(kernel_archive) 'https://github.com/Shen-Language/shen-sources/releases/download/shen-$(shenversion)/$(kernel_archive)'
+	$(CURL) $(CURL_FLAGS) --output $(kernel_archive) 'https://github.com/$(kernel_repo)/releases/download/shen-$(shenversion)/$(kernel_archive)'
 	sh scripts/verify-sha256.sh "$(kernel_sha256)" "$(kernel_archive)"
 	tar xzf $(kernel_archive)
 	cp ShenOSKernel-$(shenversion)/klambda/*.kl $(klsources_dir)/
-	for p in patches/kernel-$(shenversion)/*.patch; do \
-	  [ -f "$$p" ] || continue; \
-	  patch -d $(klsources_dir) -p1 --forward --batch < "$$p" || exit 1; \
-	done
-	$(foreach f,$(kernel_patched_files_$(shenversion)),sh scripts/verify-sha256.sh "$(kernel_patched_sha256_$(shenversion)_$(f))" "$(klsources_dir)/$(f)" &&) true
 
 .PHONY: fetch-prebuilt
 fetch-prebuilt:
