@@ -7,7 +7,7 @@
 
 (assert-kernel-equal
   "kernel version"
-  "43.1.1"
+  "43.1.2"
   (version))
 
 (assert-kernel-equal
