@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fork-specific (pyrex41/shen-scheme; see FORK.md)
+
+- The REPL exits cleanly on stdin EOF instead of looping on
+  `error: empty stream`, and still evaluates a final line without a trailing
+  newline (`make test-repl-eof`).
+- `*hush*` gates only the standard-output stream, not explicit file sinks
+  (`make test-hush`).
+- File names, command-line arguments and native compile and load paths
+  convert between byte strings and Chez's Unicode strings at the OS boundary
+  (`make test-byte-string-boundaries`).
+- The kernel's type checker dereferences the checked term once per call
+  rather than once per datatype rule or hypothesis
+  (`patches/kernel-43.1/t-star-deref-once.patch`,
+  Shen-Language/shen-sources#117).
+- Dead pattern-factorisation scaffolding removed.
+- Optional Nix development environment (`flake.nix`).
+
 ### Fixed
 
 - Preserve byte strings in binary `pr` output and `read-file-as-string`,
