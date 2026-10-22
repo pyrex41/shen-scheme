@@ -9,8 +9,6 @@
 (define perf.f64-copy Destination Source -> ((foreign scm.performance-f64-copy!) Destination Source))
 (define perf.f64-import Vector -> ((foreign scm.performance-f64-import) Vector))
 (define perf.f64-export Owner -> ((foreign scm.performance-f64-export) Owner))
-(define perf.sor-batch-residual Owner Rows Cols Sweeps Omega ->
- ((foreign scm.performance-sor-batch-residual) Owner Rows Cols Sweeps Omega))
 (define perf.f64 Value -> ((foreign scm.performance-f64) Value))
 (define perf.f64-from-vector Vector -> ((foreign scm.performance-f64-from-vector) Vector))
 (define perf.f64-to-vector Owner -> ((foreign scm.performance-f64-to-vector) Owner))
@@ -29,4 +27,3 @@
 (declare perf.f64-export [perf.f64-array --> perf.absvector])
 (declare perf.f64-from-vector [[vector number] --> perf.f64-array])
 (declare perf.f64-to-vector [perf.f64-array --> [vector number]])
-(declare perf.sor-batch-residual [perf.f64-array --> [number --> [number --> [number --> [number --> number]]]]])

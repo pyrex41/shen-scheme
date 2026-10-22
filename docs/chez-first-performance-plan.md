@@ -1,5 +1,8 @@
 # Chez-first performance work
 
+Historical plan and outcome for the pre-rebase experiment. Current integration
+is described in [the integration report](chez-first-integration.md).
+
 Worktree: `work/chez-first-performance`, based on fork commit `680e2e95ed9dd0ca6d2f688453efca2a37e50021`. The fork already selects the unmodified upstream ec16a9f Shen kernel. Existing Shen-LuaChez experiments remain read-only historical evidence.
 
 ## Intended result

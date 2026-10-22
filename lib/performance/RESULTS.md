@@ -1,6 +1,8 @@
-# Managed Chez numerical region prototype
+> **Historical evidence only.** Every measurement below predates the rebase onto upstream8d26151 and the generic-array/SOR-example factorization. The current generic package installs no SOR operation; the example now allocates a reduction workspace per call instead of keeping it in an owner field. These figures are not current matched-runtime performance or allocation claims. Old raw receipts and source snapshots remain unchanged.
 
-The usable package in this directory runs a complete harmonic SOR solve through an ordinary Shen-facing API while keeping numerical storage in Chez-managed flvectors. It has no C/Lua dependency. Explicit typed storage and a one-cell managed reduction state remove the previously observed per-residual-cell boxing pattern.
+# Historical pre-rebase numerical-region measurements
+
+The former combined prototype ran a complete harmonic SOR solve through an ordinary Shen-facing API while keeping numerical storage in Chez-managed flvectors. It has no C/Lua dependency. Explicit typed storage and a one-cell managed reduction state remove the previously observed per-residual-cell boxing pattern.
 
 This is a restricted operation prototype, not automatic typed lowering for arbitrary Shen programs. The descriptor names one validated SOR/residual operation, and Shen `number` remains broader than binary64. [README.md](README.md) documents construction, ownership, numerical bounds, typechecking and compilation limitations.
 
@@ -39,3 +41,7 @@ The full public API includes pre/post typed scans, finite-result checks, bounded
 Raw files are retained under `.work/chez-first/numeric/measurement/`: identity, source snapshots, five stdout/stderr pairs, rows, runs, host observations, drift gate and process-paired analysis. Final correctness is `.work/chez-first/numeric/fork-correctness-api-v3.stdout`; earlier failures and preparation receipts remain separate. A prior `/tmp` working-directory smoke confirms loading with an explicit absolute package root.
 
 This prototype is ready for further integration review. General region syntax, automatic representation inference, sealed/AOT packaging, compiler integration, concurrency, general arithmetic overflow rollback and other architectures are outside this qualification. The measured outcome supports pursuing explicit typed numerical storage and reductions in Chez before adding another runtime.
+
+## Current factorization correctness
+
+After the rebase and package/example split, the rebuilt runtime passes the fresh-process generic-only smoke (**12 checks**) and the full explicit-example suite (**73 checks**, preserving the original68 and adding5 example-loader controls). The100x100 application still agrees in every cell and stops after3,470 sweeps. A bounded allocation regression control performs100 checked residual calls, including each call's new one-cell managed workspace, and allocates32,160 Chez bytes. This is a focused correctness/allocation control, not a new matched speed cohort or a denominator for the historical timings above. Commands and before/after source/runtime hashes were captured with the integration receipts.

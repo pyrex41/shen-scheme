@@ -1,0 +1,9 @@
+(shen.module
+  (version 1)
+  (name perf-example.arrays)
+  (requires-features shen/scheme)
+  (sources tc+ "arrays.shen")
+  (extension shen/scheme
+    (mode compatible)
+    (profile release)
+    (metadata runtime compiletime)))

@@ -1,8 +1,7 @@
 ;; Managed binary64 owners. This file is loaded by load.ss with its own path.
 (define-record-type (performance-array %performance-array performance-array?)
  (fields (mutable storage performance-storage performance-storage-set!)
-         (immutable length performance-length)
-         (immutable reduction performance-reduction)))
+         (immutable length performance-length)))
 (define (performance-live who owner)
  (unless (and (performance-array? owner) (performance-storage owner))
   (error who "expected live managed binary64 array"))
@@ -17,7 +16,7 @@
 (define (performance-f64-create count value)
  (performance-count 'performance-f64-create count)
  (performance-binary64 'performance-f64-create value)
- (%performance-array (make-flvector count value) count (make-flvector 1 0.0)))
+ (%performance-array (make-flvector count value) count))
 (define (performance-f64-close! owner)
  (unless (performance-array? owner) (error 'performance-f64-close! "expected array owner"))
  (performance-storage-set! owner #f)
@@ -59,38 +58,6 @@
         [out (make-vector n)])
   (do ([i 0 (fx+ i 1)]) ((fx= i n) out)
    (vector-set! out i (flvector-ref src i)))))
-;; Finite constructor/setter/import preserve finite storage. Solver-specific
-;; bounded cells/omega additionally ensure every admitted intermediate finite.
-;; General finite f64 cells alone do not guarantee arithmetic cannot overflow.
-(define (performance-sor-validate owner rows cols sweeps omega)
- (performance-live 'performance-sor-batch-residual owner)
- (for-each (lambda (n)
-   (unless (and (fixnum? n) (<= 3 n 256))
-    (error 'performance-sor-batch-residual "dimensions must be exact 3..256")))
-  (list rows cols))
- (unless (= (performance-length owner) (fx* rows cols))
-  (error 'performance-sor-batch-residual "shape differs from array length"))
- (unless (and (fixnum? sweeps) (<= 0 sweeps 10000))
-  (error 'performance-sor-batch-residual "sweeps must be exact 0..10000"))
- (performance-binary64 'performance-sor-batch-residual omega)
- (unless (fl=? omega 1.25)
-  (error 'performance-sor-batch-residual "prototype requires explicit omega 1.25"))
- (unless (performance-sor-input-valid? (performance-storage owner) (performance-length owner))
-  (error 'performance-sor-batch-residual "solver region requires cells in [0,2]"))
- #t)
-
-(define (performance-sor-batch-residual owner rows cols sweeps omega)
- (performance-sor-validate owner rows cols sweeps omega)
- (let ([answer (performance-sor-kernel (performance-storage owner) (performance-reduction owner)
-                         rows cols sweeps omega)])
-  ;; Numeric overflow is an execution failure, distinct from pre-write argument
-  ;; rejection. Close the owner on failure; no invalid values can be reused.
-  (let ([grid (performance-storage owner)])
-   (guard (e [else (performance-f64-close! owner) (raise e)])
-    (performance-binary64 'performance-sor-batch-residual answer)
-    (unless (performance-sor-output-finite? grid (performance-length owner))
-     (error 'performance-sor-batch-residual "nonfinite execution output"))))
-  answer))
 ;; Explicit conversion: exact integers only within the all-integers-exact
 ;; binary64 range. No rationals, complex values, overflow, or silent rounding.
 (define (performance-f64 value)

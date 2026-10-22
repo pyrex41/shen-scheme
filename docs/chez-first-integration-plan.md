@@ -23,3 +23,19 @@ separate from changes to that runtime.
    with measured-versus-hypothesized benefits and concrete qualification gates.
 
 No changes or public writes to tizoc upstream. Preserve all sibling worktrees.
+
+## Completed
+
+- Rebase onto upstream `8d261518db17fbfec32d1b268b40ed216b925c74` is complete;
+  upstream conversion implementations supersede overlapping fork helpers.
+- Generic managed arrays and the separately loaded SOR example are integrated;
+  compatible native callers use an explicitly qualified initialization flow.
+- Full port suite, 12 generic checks, 73 example checks, allocation/native-module
+  controls, 154 community kernel tests and extracted binary-package smoke pass.
+  The first full-suite timeout is retained alongside the bounded passing retry.
+- Historical timings remain historical after the rebase/workspace change.
+- Shen-Lua source review and learnings are recorded separately in the
+  `shen-luachez` workspace; Shen-Lua runtime sources remain unchanged.
+
+See [the integration report](chez-first-integration.md) for contracts, exact
+qualification and evidence paths.

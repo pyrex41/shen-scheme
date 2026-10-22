@@ -259,7 +259,10 @@ test-ppm: $(exe) $(runtime_artifacts)
 
 .PHONY: test-performance
 test-performance: $(exe) $(runtime_artifacts)
+	./$(exe) script tests/performance/generic.shen
 	./$(exe) script tests/performance/run.shen
+	./$(exe) script tests/performance/allocation.shen
+	sh scripts/check-performance-native.sh ./$(exe)
 
 .PHONY: test-compiler
 test-compiler: $(exe) $(runtime_artifacts)
@@ -471,7 +474,11 @@ binary-release: $(exe) $(runtime_artifacts)
 	cp $(runtime_obj) "_dist/shen-scheme-$(git_tag)-$(os)-bin/lib/shen-scheme/shen-scheme"
 	cp README.md "_dist/shen-scheme-$(git_tag)-$(os)-bin/README.txt"
 	cp docs/native-compilation.md "_dist/shen-scheme-$(git_tag)-$(os)-bin/docs"
+	cp docs/chez-first-integration.md docs/chez-first-performance.md "_dist/shen-scheme-$(git_tag)-$(os)-bin/docs"
+	cp FORK.md "_dist/shen-scheme-$(git_tag)-$(os)-bin/"
 	cp -R examples/native "_dist/shen-scheme-$(git_tag)-$(os)-bin/examples"
+	cp -R examples/performance "_dist/shen-scheme-$(git_tag)-$(os)-bin/examples"
+	cp -R lib/performance "_dist/shen-scheme-$(git_tag)-$(os)-bin/lib"
 	cp LICENSE "_dist/shen-scheme-$(git_tag)-$(os)-bin/LICENSE.txt"
 	cp $(cslicense) "_dist/shen-scheme-$(git_tag)-$(os)-bin/chez-legal/LICENSE.txt"
 	cp $(cscopyright) "_dist/shen-scheme-$(git_tag)-$(os)-bin/chez-legal/NOTICE.txt"

@@ -1,5 +1,12 @@
 # Chez-first performance implementation
 
+> Historical experiment report: the measurements and commands below describe
+> the pre-rebase combined prototype at `archive/chez-first-pre-upstream-20261022`.
+> The current optional library separates generic arrays from SOR. See the
+> [integration report](chez-first-integration.md) for current source, initialization
+> and qualification. Earlier speedups are not automatically current after the
+> upstream rebase and representation change.
+
 The useful extension is an explicit typed numerical region inside Chez, backed
 by managed flvectors and callable from ordinary Shen. This prototype improves a
 complete numerical application without another runtime. Existing native module

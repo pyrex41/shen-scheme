@@ -253,13 +253,15 @@ deployment, and benchmarks.
 Chez-first numerical prototype
 ------------------------------
 
-Source checkouts include an explicit managed binary64 array API and a checked
-SOR/residual operation in [lib/performance](lib/performance/README.md). Ordinary
-Shen drives the application while Chez handles the typed numerical region.
-This experimental package preserves the ordinary compiler and requires no
-second runtime. See the [implementation report](docs/chez-first-performance.md)
-for application results, native compilation comparisons and qualification limits.
-Run its semantic checks with `make test-performance`.
+The optional [managed binary64 array library](lib/performance/README.md) provides
+explicit checked storage without changing generic Shen numbers or vectors.
+The [SOR example](examples/performance/sor/README.md) loads its numerical
+operation separately; the [compatible native-module example](examples/performance/native/README.md)
+demonstrates explicit initialization in separate build and run processes.
+These extensions use Chez alone. Run their checks with `make test-performance`.
+See the [integration report](docs/chez-first-integration.md) for the current
+upstream rebase and qualification, and the [earlier experiment report](docs/chez-first-performance.md)
+for historical application measurements and limits.
 
 Home and runtime selection
 --------------------------
@@ -365,7 +367,8 @@ Fork notes
 
 This fork (pyrex41/shen-scheme) is upstream
 [tizoc/shen-scheme](https://github.com/tizoc/shen-scheme) plus the
-fork-specific commits listed in [FORK.md](FORK.md).
+fork-specific commits listed in [FORK.md](FORK.md), rebased onto upstream
+`8d261518db17fbfec32d1b268b40ed216b925c74` on 2026-10-22.
 
 ### Optional Nix environment
 

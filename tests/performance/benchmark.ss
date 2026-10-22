@@ -1,5 +1,7 @@
 (load "lib/performance/load.ss")
 (performance-load (path-build (current-directory) "lib/performance"))
+(load "examples/performance/sor/load.ss")
+(performance-sor-load (path-build (current-directory) "examples/performance/sor"))
 (parameterize ([optimize-level 3])
  (kl:load "tests/performance/dynamic-sor.shen")
  (kl:load "tests/performance/solve.shen"))
@@ -24,7 +26,7 @@
       (vector-ref result 0) (vector-ref result 1))
     (flush-output-port (current-output-port))))) rotated)
 ;; Separate allocation-only residual probe on resident managed storage.
-(let* ([owner (performance-f64-create 10000 0.0)] [scratch (performance-reduction owner)]
+(let* ([owner (performance-f64-create 10000 0.0)] [scratch (make-flvector 1 0.0)]
        [storage (performance-storage owner)] [stats (statistics)])
  (do ([i 0 (+ i 1)]) ((= i 100)) (performance-sor-kernel storage scratch 100 100 0 1.25))
  (printf "RESIDUAL_ALLOC_100 ~s\n" (- (sstats-bytes (statistics)) (sstats-bytes stats)))

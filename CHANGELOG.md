@@ -14,9 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   newline (`make test-repl-eof`).
 - `*hush*` gates only the standard-output stream, not explicit file sinks
   (`make test-hush`).
-- File names, command-line arguments and native compile and load paths
-  convert between byte strings and Chez's Unicode strings at the OS boundary
-  (`make test-byte-string-boundaries`).
+- Rebase onto upstream `8d26151`, adopting upstream's Unicode/OS boundary
+  conversions and retaining the fork's extra boundary regression checks.
 - Kernel: an unmodified build of Shen-Language/shen-sources commit `ec16a9f`,
   the merge of #117 (pyrex41/shen-sources release `upstream-ec16a9f`,
   `ShenOSKernel-43.1-ec16a9f.tar.gz`). The type checker dereferences the
@@ -25,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(version)` is `"43.1"`, as on upstream master.
 - Dead pattern-factorisation scaffolding removed.
 - Optional Nix development environment (`flake.nix`).
+- Optional managed binary64 array library, separately loaded SOR example and
+  compatible native-module example with explicit initialization. Generic Shen
+  arithmetic and the default compiler are unchanged. `make test-performance`
+  checks the extension; historical timing results are identified separately.
 
 ### Fixed
 
