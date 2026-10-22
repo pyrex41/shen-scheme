@@ -17,12 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - File names, command-line arguments and native compile and load paths
   convert between byte strings and Chez's Unicode strings at the OS boundary
   (`make test-byte-string-boundaries`).
-- Kernel ShenOSKernel 43.1.2 (pyrex41/shen-sources release `shen-43.1.2`):
-  43.1 plus Shen-Language/shen-sources#117, so the type checker dereferences
-  the checked term once per call rather than once per datatype rule or
-  hypothesis. On an empty hypothesis or datatype list it fails at once without
-  dereferencing the term (the guard from review on #117, new in 43.1.2).
-  `(version)` is `"43.1.2"`.
+- Kernel: an unmodified build of Shen-Language/shen-sources commit `ec16a9f`,
+  the merge of #117 (pyrex41/shen-sources release `upstream-ec16a9f`,
+  `ShenOSKernel-43.1-ec16a9f.tar.gz`). The type checker dereferences the
+  checked term once per call rather than once per datatype rule or
+  hypothesis, and not at all on an empty hypothesis or datatype list.
+  `(version)` is `"43.1"`, as on upstream master.
 - Dead pattern-factorisation scaffolding removed.
 - Optional Nix development environment (`flake.nix`).
 
