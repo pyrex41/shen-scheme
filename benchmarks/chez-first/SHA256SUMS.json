@@ -1,0 +1,26 @@
+{
+  "contract": "Final post-cohort seal. metadata.json transitively binds all1300 original raw artifact files; source-snapshot/manifest.json binds11 exact measured source files. Post-cohort report/analyse are separately bound here. No measured source was changed after cohort.",
+  "sha256": {
+    ".work/chez-first/baseline/manifest.json": "56a23c31e60c9c82e34a1aa451f3df988283ab8f5220674691dd2cff0d73a640",
+    ".work/chez-first/modes/final/all.csv": "fee38e4476a267d1ec193da0c4a154745a94a832efb9718e3f0cbdaa73001c01",
+    ".work/chez-first/modes/final/checkpoint.json": "d1f2a7981b0ceb9e7ee3afc7842e1f1dcc46f4c93438405141e18d60fee21d99",
+    ".work/chez-first/modes/final/host-after.json": "931d4dbbeec903795db40a6628462f50b1901a8ec5de57cffd5b1a1d83726026",
+    ".work/chez-first/modes/final/host-before.json": "3a6cd2cf5691b1a64bba8fd128dcae1e70a55654655c5e0515ec4397cb350dde",
+    ".work/chez-first/modes/final/metadata.json": "f94d22b955048da6d33b49e946d36f708c3c4597280422dc4c0d71ecb43104c6",
+    ".work/chez-first/modes/final/paired-summary.json": "a318587f0171c2324d846670345bfd7a6c9acff4c395058785e688fc579a0a48",
+    ".work/chez-first/modes/final/processes.json": "0eae0a727e9958e7230344459835dcb52ae22b48a0dfc6ac44133eecfdd6e2bc",
+    ".work/chez-first/modes/final/source-snapshot/manifest.json": "d105a76761f643f56e06851d78215c0de4baab303ec7991abe86facec548c492",
+    ".work/chez-first/review/modes-final-audit.json": "23450745db9c2a2639e7024eaadcb43dbfe1fc749950e16277f4103603a5977a",
+    "benchmarks/chez-first/PLAN.md": "08e753a576e86509b5375a5e52f556e4a7b29063cf7ce08e24da251035de4fd1",
+    "benchmarks/chez-first/README.md": "b4daf3bf883ac8fae43a1b3d60cab6fa2a0c7b965358314fe5b81d0a631f03d4",
+    "benchmarks/chez-first/REPORT.md": "807c2545be59199e8957da0811f416d89fde824707be7cb5623db1457f1faeb4",
+    "benchmarks/chez-first/analyse.py": "be6db43d31741b2c04fd167783ea1bff973916f46fc1ec3947b77925cb2c2dd9",
+    "benchmarks/chez-first/cminus-main.shen": "56507b0259d9156ed980151003bdf19ee0891a65fa4173d5faeb0507663db49d",
+    "benchmarks/chez-first/driver.ss": "a31cebc811318ebb140a0440dec5fe609d1beba583f4ca2c99d8675a6afcd191",
+    "benchmarks/chez-first/entry.shen": "4c66cd62c9995d5575836e74367655e6084135761f04bd54742919ced2ce6734",
+    "benchmarks/chez-first/entry.ss": "ab5e1065b93906f6beb7b3ea04d4f8c1350ead57301f46a7ceae39bffd21a107",
+    "benchmarks/chez-first/interpreter-main.shen": "6a8085d23045a3f821dbb9d306297a9a426978367fab7d81f73ff74a75170098",
+    "benchmarks/chez-first/numeric-main.shen": "9174bc2323afefabd53d882cee1b6434fb3359981aff995dae3e049c1cf34b0e",
+    "benchmarks/chez-first/run.py": "686244dbc99d5c95d19dbfc273f969a71a31c0cfbf0f0f6d895144d0defe2f72"
+  }
+}

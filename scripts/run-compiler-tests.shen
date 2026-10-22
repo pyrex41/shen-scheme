@@ -50,3 +50,4 @@
 
 (quiet-load "tests/compiler-tests.shen")
 (quiet-load "tests/compiler-order-tests.shen")
+(quiet-load "tests/compiler-dynamic-application.shen")

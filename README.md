@@ -250,6 +250,17 @@ and full-to-Petite deployment. The
 CLI, `.shenmod` format, Shen API, metadata behavior, limitations, embedding,
 deployment, and benchmarks.
 
+Chez-first numerical prototype
+------------------------------
+
+Source checkouts include an explicit managed binary64 array API and a checked
+SOR/residual operation in [lib/performance](lib/performance/README.md). Ordinary
+Shen drives the application while Chez handles the typed numerical region.
+This experimental package preserves the ordinary compiler and requires no
+second runtime. See the [implementation report](docs/chez-first-performance.md)
+for application results, native compilation comparisons and qualification limits.
+Run its semantic checks with `make test-performance`.
+
 Home and runtime selection
 --------------------------
 

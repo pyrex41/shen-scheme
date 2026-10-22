@@ -257,6 +257,10 @@ test-ppm: $(exe) $(runtime_artifacts)
 	./$(exe) script scripts/run-programmable-pattern-matching-tests.shen
 	SHEN_SCHEME_RUNTIME=petite ./$(exe) script scripts/run-programmable-pattern-matching-tests.shen
 
+.PHONY: test-performance
+test-performance: $(exe) $(runtime_artifacts)
+	./$(exe) script tests/performance/run.shen
+
 .PHONY: test-compiler
 test-compiler: $(exe) $(runtime_artifacts)
 	./$(exe) script scripts/run-compiler-tests.shen
@@ -377,7 +381,7 @@ test-clean-parallel-build: chez_kernel
 	./$(exe) --version
 
 .PHONY: test
-test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-byte-strings test-byte-string-boundaries test-repl-eof test-hush
+test: test-shen test-ppm test-compiler test-native test-native-examples test-namespaces test-byte-strings test-byte-string-boundaries test-repl-eof test-hush test-performance
 
 .PHONY: test-byte-strings
 test-byte-strings: $(exe) $(runtime_artifacts)
