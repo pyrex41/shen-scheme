@@ -55,7 +55,7 @@ ifeq ($(os), linux)
 	linkerflags = -lm -ldl -lpthread -luuid
 endif
 
-shenversion ?= 43.1.2
+shenversion ?= 43.1-ec16a9f
 csversion ?= 10.3.0
 prebuilt_version ?= 0.26
 
@@ -73,6 +73,12 @@ kernel_sha256_43.1.1 = 86448e80f4a99421d05135d0db46dc5fc4cb207788bde87c50b47b35e
 kernel_repo_43.1.1 = pyrex41/shen-sources
 kernel_sha256_43.1.2 = c7ec855c701d1c7c47b4c6e2e2d9c7a0df5b7fa11c10e361167de604742c2fd7
 kernel_repo_43.1.2 = pyrex41/shen-sources
+# 43.1-ec16a9f is an unmodified build of Shen-Language/shen-sources commit
+# ec16a9f, the merge of #117 (no upstream release contains it yet); (version)
+# is "43.1". Released on pyrex41/shen-sources under tag upstream-ec16a9f.
+kernel_sha256_43.1-ec16a9f = 060066a8f84d9a2f7d41cb3b37b986a8d4653279752b739b5063cd648d9baacd
+kernel_repo_43.1-ec16a9f = pyrex41/shen-sources
+kernel_tag_43.1-ec16a9f = upstream-ec16a9f
 prebuilt_sha256_0.26_linux = 2859384f3b16cd6cf596084cfff7e2d9d5b31a11df3d1f7c9e1f1746ed6ef798
 prebuilt_sha256_0.26_macOS = a9c321a286daf354dda8ab51eb2b191cbdc339c2087e4490488c88ce462f5dc6
 prebuilt_sha256_0.26_windows = 7c5ab365cdd42aa02bfba90f857fddc7b431672fe01928f14f2b0f1156042549
@@ -80,6 +86,7 @@ prebuilt_sha256_0.26_windows = 7c5ab365cdd42aa02bfba90f857fddc7b431672fe01928f14
 chez_sha256 ?= $(chez_sha256_$(csversion))
 kernel_sha256 ?= $(kernel_sha256_$(shenversion))
 kernel_repo ?= $(or $(kernel_repo_$(shenversion)),Shen-Language/shen-sources)
+kernel_tag ?= $(or $(kernel_tag_$(shenversion)),shen-$(shenversion))
 prebuilt_sha256 ?= $(prebuilt_sha256_$(prebuilt_version)_$(os))
 
 chez_archive = csv$(csversion).tar.gz
@@ -219,7 +226,7 @@ $(runtime_obj): | $(runtime_stamp)
 .PHONY: fetch-kernel
 fetch-kernel:
 	$(if $(strip $(kernel_sha256)),,$(error no SHA-256 checksum is configured for $(kernel_archive); set kernel_sha256))
-	$(CURL) $(CURL_FLAGS) --output $(kernel_archive) 'https://github.com/$(kernel_repo)/releases/download/shen-$(shenversion)/$(kernel_archive)'
+	$(CURL) $(CURL_FLAGS) --output $(kernel_archive) 'https://github.com/$(kernel_repo)/releases/download/$(kernel_tag)/$(kernel_archive)'
 	sh scripts/verify-sha256.sh "$(kernel_sha256)" "$(kernel_archive)"
 	tar xzf $(kernel_archive)
 	cp ShenOSKernel-$(shenversion)/klambda/*.kl $(klsources_dir)/
