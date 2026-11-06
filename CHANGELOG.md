@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Exit the REPL with status 0 at EOF on an empty line, instead of printing
+  `empty stream` forever when standard input runs out. A program reading
+  standard input still gets -1 or that error, as usual.
+
 ## [0.54] - 2026-11-06
 
 ### Fixed

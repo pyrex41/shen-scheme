@@ -133,6 +133,21 @@
 (define shen.eval-factorised-branch
   [defun BranchName Args Body] -> (shen.push-factorised-branch [defun BranchName Args Body]))
 
+\* Exit at EOF on an empty REPL line, as Ctrl-D does in other Lisps, instead of
+   looping on the reader's "empty stream" error. Only the REPL's own read is
+   affected: a program reading (stinput) still gets -1 or that error. *\
+(define _scm.repl-read
+  Stream -> (let Byte (shen.my-read-byte Stream)
+              (if (= Byte -1)
+                  (do (nl 1) ((foreign scm.exit) 0))
+                  (shen.read-loop Stream Byte [] (/. X (shen.return? X))))))
+
+(define shen.read-evaluate-print
+  -> (let Package (value shen.*package*)
+          Lineread (shen.package-user-input Package (_scm.repl-read (stinput)))
+          History (shen.update-history)
+       (shen.evaluate-lineread Lineread History (value shen.*tc*))))
+
 \* To print location of errors *\
 
 (package shen [scm.error-location scm.raise scm.remember-exception!]
