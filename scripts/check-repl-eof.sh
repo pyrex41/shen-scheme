@@ -1,5 +1,5 @@
 #!/bin/sh
-# Fork-specific: the REPL must exit cleanly on stdin EOF, and must still
+# The REPL must exit cleanly on stdin EOF, and must still
 # evaluate a final line that reaches EOF without a trailing newline (the
 # Shen 42.1+ reader contract).
 #
@@ -44,5 +44,31 @@ check "EOF after trailing newline" '(+ 20 22)\n' '(0-) 42'
 check "multi-line input at EOF" '(+ 1\n2)' '(0-) 3'
 check "two lines, last unterminated" '(+ 1 2)\n(* 3 4)' '(1-) 12'
 check "empty input" '' '(0-)'
+
+# A program's own reads are not the REPL's: they see EOF as usual, and the REPL
+# then exits at its next prompt.
+check_program() {
+  label="$1"; input="$2"; expected="$3"
+  printf "$input" | "$exe" > "$tmp/out" 2>&1 &
+  pid=$!
+  waited=0
+  while kill -0 "$pid" 2>/dev/null && [ "$waited" -lt "$deadline" ]; do
+    sleep 1; waited=$((waited + 1))
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+    echo "[FAIL]  $label: REPL did not exit at EOF"; status=1
+    return
+  fi
+  wait "$pid" 2>/dev/null
+  if grep -qF "$expected" "$tmp/out"; then
+    echo "[OK]    $label"
+  else
+    echo "[FAIL]  $label: expected '$expected' in output"; status=1
+  fi
+}
+
+check_program "read-byte from a program gets -1" '(read-byte (stinput))\n' '(0-) -1'
+check_program "read from a program raises" '(read (stinput))\n' 'empty stream'
 
 exit $status
